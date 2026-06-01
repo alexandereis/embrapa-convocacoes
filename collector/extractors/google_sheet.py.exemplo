@@ -1,0 +1,57 @@
+"""MODELO: adaptador para uma planilha Google propria (fonte independente).
+
+Renomeie para google_sheet.py, registre em __init__.py e aponte
+EXTRACTOR = "google_sheet" em config.py.
+
+Funciona com uma planilha publicada como CSV:
+  Arquivo > Compartilhar > Publicar na web > escolha a aba > formato CSV.
+Cole as URLs publicadas abaixo. O resto do pipeline (transform.py) nao muda.
+"""
+import csv
+import io
+import urllib.request
+
+from .base import BaseExtractor, RawData
+
+# URLs de cada aba publicada como CSV (exemplo):
+URL_PESSOAS = "https://docs.google.com/spreadsheets/d/SEU_ID/export?format=csv&gid=0"
+URL_OPCOES = "https://docs.google.com/spreadsheets/d/SEU_ID/export?format=csv&gid=111"
+
+
+def _csv(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "embrapa-collector"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return list(csv.DictReader(io.StringIO(r.read().decode("utf-8-sig"))))
+
+
+class GoogleSheetExtractor(BaseExtractor):
+    name = "google_sheet"
+
+    def fetch(self) -> RawData:
+        d = RawData()
+        # Ajuste os nomes das colunas conforme a SUA planilha:
+        for row in _csv(URL_PESSOAS):
+            d.pessoas.append({
+                "colocacao": row.get("COLOCACAO", ""), "nome": row.get("NOME", ""),
+                "opcao": row.get("OPCAO", ""), "status": row.get("STATUS", ""),
+                "unidade": row.get("UNIDADE", ""), "lotacao": row.get("LOTACAO", ""),
+            })
+            ds = row.get("DATA_CONVOCACAO", "")[:10]
+            if ds:
+                d.convocacoes.append({"date": ds, "cargo": row.get("CARGO", "")})
+            if row.get("STATUS") == "Contratado" and row.get("DATA_CONTRATACAO"):
+                d.contratacoes.append({"date": row["DATA_CONTRATACAO"][:10],
+                                       "cargo": row.get("CARGO", "")})
+        for row in _csv(URL_OPCOES):
+            d.opcoes.append({
+                "opcao": row.get("OPCAO", ""), "cargo": row.get("CARGO", ""),
+                "area": row.get("AREA", ""), "subarea": row.get("SUBAREA", ""),
+                "vagas": int(row.get("VAGAS", 0) or 0),
+                "aguardando": int(row.get("AGUARDANDO", 0) or 0),
+                "em_contratacao": int(row.get("EM_CONTRATACAO", 0) or 0),
+                "contratados": int(row.get("CONTRATADOS", 0) or 0),
+                "pct": int(float(row.get("PCT", 0) or 0)),
+                "convocados": int(row.get("CONVOCADOS", 0) or 0),
+                "desistencias": int(row.get("DESISTENCIAS", 0) or 0),
+            })
+        return d

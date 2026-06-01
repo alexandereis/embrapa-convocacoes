@@ -1,0 +1,60 @@
+name: Coleta e Deploy
+
+# Roda a cada hora, e tambem permite disparo manual pela aba Actions.
+on:
+  schedule:
+    - cron: "17 * * * *"   # minuto 17 de cada hora (UTC)
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ "site/**", "collector/**", ".github/workflows/**" ]
+
+permissions:
+  contents: write   # para commitar o data.json atualizado
+  pages: write      # para publicar no GitHub Pages
+  id-token: write
+
+concurrency:
+  group: "coleta-pages"
+  cancel-in-progress: false
+
+jobs:
+  coletar-e-publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Coletar dados (recalcula metricas)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # eleva o rate limit da API
+        run: python collector/collect.py
+
+      - name: Commitar data.json se mudou
+        run: |
+          git config user.name "embrapa-collector-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -n "$(git status --porcelain site/data/data.json)" ]; then
+            git add site/data/data.json
+            git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          else
+            echo "Sem mudancas nos dados."
+          fi
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload do site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

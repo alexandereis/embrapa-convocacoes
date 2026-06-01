@@ -1,0 +1,193 @@
+"""Recalcula TODAS as metricas do dashboard a partir dos dados brutos.
+
+Independente da fonte: recebe um RawData e devolve o data.json final.
+Aqui mora a inteligencia do coletor -- nada vem "pronto" da fonte, exceto
+os poucos campos que exigem historico diario fino (complementados via extras).
+"""
+from collections import defaultdict, OrderedDict
+from datetime import date, datetime, timedelta
+
+CARGOS = ["Pesquisador", "Analista", "Tecnico", "Tecnico", "Assistente"]
+
+
+def _iso_week(dstr):
+    y, w, _ = datetime.strptime(dstr, "%Y-%m-%d").isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def _month(dstr):
+    return dstr[:7]
+
+
+def _business_days(d0, d1):
+    n, cur = 0, d0
+    while cur < d1:
+        cur += timedelta(days=1)
+        if cur.weekday() < 5:
+            n += 1
+    return n
+
+
+def _moving_avg(values, window):
+    out = []
+    for i in range(len(values)):
+        seg = values[max(0, i - window + 1):i + 1]
+        out.append(round(sum(seg) / len(seg), 1))
+    return out
+
+
+def build(raw):
+    pessoas = raw.pessoas
+    opcoes = raw.opcoes
+
+    # ---------- status ----------
+    por_status = defaultdict(int)
+    for p in pessoas:
+        por_status[p["status"]] += 1
+    por_status = dict(por_status)
+
+    # ---------- por cargo (a partir do resumo por opcao) ----------
+    cg = defaultdict(lambda: {"total": 0, "em_contratacao": 0, "contratados": 0,
+                              "convocados": 0, "desistencias": 0})
+    for o in opcoes:
+        c = cg[o["cargo"]]
+        c["total"] += o["vagas"]
+        c["em_contratacao"] += o["em_contratacao"] + o["aguardando"]
+        c["contratados"] += o["contratados"]
+        c["convocados"] += o["convocados"]
+        c["desistencias"] += o["desistencias"]
+    por_cargo = []
+    ordem = ["Pesquisador", "Analista", "Tecnico", "Tecnico", "Assistente"]
+    for cargo, v in cg.items():
+        total = v["total"] or 1
+        por_cargo.append({
+            "cargo": cargo, "total": v["total"], "em_contratacao": v["em_contratacao"],
+            "contratados": v["contratados"],
+            # % efetivamente contratado (fato consolidado)
+            "pct_contratado": round(v["contratados"] / total * 100, 2),
+            # % preenchido = contratados + em andamento (mesma leitura do controle de referencia)
+            "pct_preenchido": round((v["contratados"] + v["em_contratacao"]) / total * 100, 2),
+            "vagas_abertas": max(0, v["total"] - v["contratados"] - v["em_contratacao"]),
+        })
+    rank = {"Pesquisador": 0, "Analista": 1, "Tecnico": 2, "Assistente": 3}
+    por_cargo.sort(key=lambda x: rank.get(x["cargo"], 9))
+
+    # ---------- desistencias por cargo ----------
+    desist = [{"cargo": "Todos",
+               "desistencias": sum(c["desistencias"] for c in cg.values()),
+               "convocacoes": sum(c["convocados"] for c in cg.values()), "pct": 0}]
+    for cargo, v in cg.items():
+        conv = v["convocados"] or 1
+        desist.append({"cargo": cargo, "desistencias": v["desistencias"],
+                       "convocacoes": v["convocados"],
+                       "pct": round(v["desistencias"] / conv * 100, 2)})
+    for d in desist:
+        conv = d["convocacoes"] or 1
+        d["pct"] = round(d["desistencias"] / conv * 100, 2)
+    desist.sort(key=lambda x: (x["cargo"] != "Todos", rank.get(x["cargo"], 9)))
+
+    # ---------- distribuicao de opcoes por nº de candidatos/convocados ----------
+    buckets = OrderedDict([("1-5", 0), ("6-10", 0), ("11-15", 0), ("16-20", 0), (">20", 0)])
+    for o in opcoes:
+        n = o["convocados"]
+        key = "1-5" if n <= 5 else "6-10" if n <= 10 else "11-15" if n <= 15 else "16-20" if n <= 20 else ">20"
+        buckets[key] += 1
+    options_distribution = {"buckets": [{"range": k, "count": v} for k, v in buckets.items()]}
+
+    # ---------- series temporais (recomputadas das datas) ----------
+    conv_dates = sorted(c["date"] for c in raw.convocacoes if c.get("date"))
+    weekly = defaultdict(int)
+    for ds in conv_dates:
+        weekly[_iso_week(ds)] += 1
+    weekly_series = [{"label": k, "value": weekly[k]} for k in sorted(weekly)]
+
+    contr_dates = sorted(c["date"] for c in raw.contratacoes if c.get("date"))
+    monthly = defaultdict(int)
+    for ds in contr_dates:
+        monthly[_month(ds)] += 1
+    monthly_contr = []
+    for k in sorted(monthly):
+        y, m = k.split("-")
+        monthly_contr.append({"label": f"{m}/{y[2:]}", "value": monthly[k]})
+
+    # velocidade diaria (ultimos 15 dias com atividade ou ate hoje)
+    daily = defaultdict(int)
+    for ds in conv_dates:
+        daily[ds] += 1
+    if conv_dates:
+        d0 = datetime.strptime(conv_dates[0], "%Y-%m-%d").date()
+        d1 = datetime.strptime(conv_dates[-1], "%Y-%m-%d").date()
+        all_days, cur = [], d0
+        while cur <= d1:
+            all_days.append(cur.isoformat())
+            cur += timedelta(days=1)
+        vals = [daily.get(d, 0) for d in all_days]
+        mm5 = _moving_avg(vals, 5)
+        mm10 = _moving_avg(vals, 10)
+        velocity = [{"date": all_days[i], "convocados": vals[i], "mm5": mm5[i], "mm10": mm10[i]}
+                    for i in range(len(all_days))][-15:]
+    else:
+        velocity = []
+
+    # ---------- unidades ----------
+    pu = defaultdict(lambda: {"total": 0, "contratados": 0})
+    for p in pessoas:
+        u = p["unidade"] or "Nao informada"
+        pu[u]["total"] += 1
+        if p["status"] == "Contratado":
+            pu[u]["contratados"] += 1
+    por_unidade = sorted(({"unidade": k, **v} for k, v in pu.items()),
+                         key=lambda x: -x["total"])
+
+    # ---------- aceites pendentes ----------
+    aceites = [{"nome": p["nome"], "opcao": p["opcao"], "unidade": p["unidade"],
+                "lotacao": p["lotacao"]}
+               for p in pessoas if p["status"] in ("Aceitou", "Convocado")]
+
+    # ---------- general ----------
+    total_vagas = sum(c["total"] for c in por_cargo)
+    total_convocados = sum(c["convocados"] for c in cg.values()) or len(pessoas)
+    total_contratados = por_status.get("Contratado", 0)
+    total_aceitou = por_status.get("Aceitou", 0)
+    total_desist = sum(c["desistencias"] for c in cg.values())
+    biz = _business_days(datetime.strptime(conv_dates[0], "%Y-%m-%d").date(),
+                         date.today()) if conv_dates else 0
+    media_mm10 = velocity[-1]["mm10"] if velocity else 0
+    hoje = date.today().isoformat()
+    convocados_hoje = daily.get(hoje, 0)
+
+    ex = raw.extras or {}
+    general = {
+        "last_update": raw.last_update or datetime.now().strftime("%d/%m/%Y - %H:%M:%S"),
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "business_days_elapsed": ex.get("business_days_elapsed", biz),
+        "total_convocados": total_convocados,
+        "total_aceitou": total_aceitou,
+        "total_contratados": total_contratados,
+        "pct_desistencias": round(total_desist / (total_convocados or 1) * 100, 1),
+        "convocados_hoje": convocados_hoje,
+        "media_diaria_mm10": round(media_mm10),
+        "avg_days_convocado_to_aceitou": ex.get("avg_days_convocado_to_aceitou", None),
+        "vagas_edital": total_vagas,
+    }
+
+    return {
+        "general": general,
+        "por_cargo": por_cargo,
+        "desistencias": desist,
+        "por_status": por_status,
+        "por_unidade": por_unidade,
+        "options_distribution": options_distribution,
+        "cumulative": {
+            "weekly": {"convocado": weekly_series},
+            "monthly_contratados": {"contratados": monthly_contr},
+        },
+        "velocity": velocity,
+        "opcoes": opcoes,
+        "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
+                     "status": p["status"], "unidade": p["unidade"] or "Nao informada",
+                     "lotacao": p["lotacao"]} for p in pessoas],
+        "aceites_pendentes": aceites,
+        "remaining_days": [{"cargo": "ALL",
+                            "vagas_restantes": sum(c["vagas_abertas"] for c in por_cargo)}],
+    }

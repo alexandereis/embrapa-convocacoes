@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Convocações · Concurso EMBRAPA 2025</title>
+<meta name="description" content="Acompanhamento completo e em tempo real das convocações e contratações do Concurso Público EMBRAPA 2025.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#080d09; --bg-2:#0b120c; --surface:#101a12; --surface-2:#162218;
+  --surface-3:#1d2c1f; --border:rgba(180,220,180,.10); --border-2:rgba(180,220,180,.18);
+  --text:#e9f2e6; --text-dim:#90a892; --text-faint:#5f725f;
+  --green:#3ee06f; --green-deep:#0f9e4a; --green-glow:rgba(62,224,111,.22);
+  --wheat:#e9b24c; --cyan:#48d4dd; --blue:#6ea8fe; --coral:#ff6f6f; --violet:#bd9bf2; --gray:#7b8a7c;
+  --radius:16px; --radius-sm:10px;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px -22px rgba(0,0,0,.9);
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif; --display:'Bricolage Grotesque',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--sans);
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 500px at 85% -8%,rgba(62,224,111,.10),transparent 60%),
+    radial-gradient(700px 500px at 5% 0%,rgba(233,178,76,.06),transparent 55%);
+  min-height:100vh;
+}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ===== TOPBAR ===== */
+.topbar{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:linear-gradient(180deg,rgba(8,13,9,.92),rgba(8,13,9,.72));
+  border-bottom:1px solid var(--border)}
+.topbar-in{display:flex;align-items:center;gap:18px;height:64px}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:-.02em}
+.logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--green),var(--green-deep));color:#04210f;font-weight:800;
+  box-shadow:0 0 0 1px rgba(62,224,111,.4),0 8px 22px -8px var(--green-glow)}
+.brand small{display:block;font-family:var(--sans);font-weight:500;font-size:11px;color:var(--text-dim);letter-spacing:.04em;margin-top:-2px}
+.live{margin-left:auto;display:flex;align-items:center;gap:14px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 var(--green-glow);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(62,224,111,.5)}70%{box-shadow:0 0 0 9px rgba(62,224,111,0)}100%{box-shadow:0 0 0 0 rgba(62,224,111,0)}}
+.live-txt{font-size:12px;color:var(--text-dim)}
+.live-txt b{color:var(--text);font-family:var(--mono)}
+.btn{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--text);
+  background:var(--surface-2);border:1px solid var(--border-2);border-radius:10px;padding:8px 14px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:.18s}
+.btn:hover{background:var(--surface-3);border-color:var(--green)}
+.btn:disabled{opacity:.5;cursor:wait}
+.btn svg{width:14px;height:14px}
+.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== NAV TABS ===== */
+.tabs{position:sticky;top:64px;z-index:40;background:rgba(8,13,9,.86);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs-in{display:flex;gap:4px;min-width:max-content}
+.tab{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--text-dim);background:none;border:none;
+  padding:15px 16px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.16s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* ===== HERO ===== */
+.hero{padding:46px 0 28px}
+.hero h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,5vw,52px);line-height:1.02;letter-spacing:-.03em;max-width:18ch}
+.hero h1 .hl{background:linear-gradient(120deg,var(--green),var(--wheat));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{color:var(--text-dim);margin-top:14px;max-width:60ch;font-size:15.5px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:20px;font-size:13px;color:var(--text-dim)}
+.hero-meta span{display:inline-flex;align-items:center;gap:7px}
+.hero-meta b{color:var(--text);font-family:var(--mono)}
+.pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;border:1px solid var(--border-2);color:var(--text-dim)}
+
+/* ===== SECTIONS ===== */
+.section{padding:8px 0 40px;display:none;animation:fade .4s ease}
+.section.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin:34px 0 16px}
+.sec-head h2{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:-.02em}
+.sec-head .ln{flex:1;height:1px;background:var(--border)}
+.sec-head .hint{font-size:12.5px;color:var(--text-faint)}
+
+/* ===== KPI GRID ===== */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.kpi{background:linear-gradient(160deg,var(--surface),var(--bg-2));border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.kpi::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:var(--accent,var(--green));opacity:.7}
+.kpi .lab{font-size:12px;color:var(--text-dim);font-weight:500;letter-spacing:.02em;display:flex;align-items:center;gap:7px}
+.kpi .val{font-family:var(--mono);font-weight:700;font-size:34px;letter-spacing:-.02em;margin-top:8px;line-height:1}
+.kpi .sub{font-size:12px;color:var(--text-faint);margin-top:7px}
+.kpi .sub b{color:var(--accent,var(--green))}
+.ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--surface-2);
+  position:absolute;top:18px;right:18px;color:var(--accent,var(--green))}
+.ic svg{width:14px;height:14px}
+
+/* ===== CARDS / GRID ===== */
+.grid{display:grid;gap:16px}
+.g-2{grid-template-columns:1.4fr .9fr}
+.g-2b{grid-template-columns:1fr 1fr}
+.card{background:linear-gradient(170deg,var(--surface),var(--bg-2));border:1px solid var(--border);
+  border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+.card h3{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+.card .desc{font-size:12.5px;color:var(--text-faint);margin-top:3px;margin-bottom:14px}
+.chart-box{position:relative;width:100%}
+
+/* progress bars */
+.prow{margin:13px 0}
+.prow .top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px}
+.prow .top .nm{font-weight:600}
+.prow .top .pc{font-family:var(--mono);font-weight:600}
+.bar{height:9px;border-radius:99px;background:var(--surface-3);overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--green-deep),var(--green));
+  width:0;transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+.bar i.amber{background:linear-gradient(90deg,#b5832e,var(--wheat))}
+.bar.stack{display:flex}
+.bar.stack i{position:static;height:100%}
+
+/* cargo cards */
+.cargo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.cargo{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden}
+.cargo .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+.cargo .big{font-family:var(--mono);font-size:30px;font-weight:700;margin:6px 0 2px}
+.cargo .of{font-size:12.5px;color:var(--text-faint)}
+.cargo .mini{display:flex;gap:14px;margin-top:14px;font-size:11.5px;color:var(--text-dim)}
+.cargo .mini b{display:block;font-family:var(--mono);font-size:16px;color:var(--text);font-weight:600}
+.cargo .ring{position:absolute;top:-30px;right:-30px;width:110px;height:110px;border-radius:50%;
+  background:conic-gradient(var(--green) calc(var(--p)*1%),var(--surface-3) 0);opacity:.16}
+
+/* ===== TABLE ===== */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.search{flex:1;min-width:220px;position:relative}
+.search input{width:100%;background:var(--surface);border:1px solid var(--border-2);border-radius:10px;
+  padding:11px 14px 11px 38px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:.16s}
+.search input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow)}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-faint)}
+.selct{background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:10px 12px;color:var(--text);
+  font-family:var(--sans);font-size:13.5px;cursor:pointer;outline:none}
+.selct:focus{border-color:var(--green)}
+.tablewrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.tscroll{overflow-x:auto;max-height:620px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+thead th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-weight:600;color:var(--text-dim);
+  padding:13px 14px;font-size:12px;letter-spacing:.02em;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--border-2);z-index:2}
+thead th:hover{color:var(--text)}
+thead th .ar{opacity:.4;font-size:10px}
+thead th.sorted .ar{opacity:1;color:var(--green)}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:none}
+.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.tag-cargo{font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;white-space:nowrap}
+.minibar{height:6px;width:70px;border-radius:99px;background:var(--surface-3);overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
+.minibar i{display:block;height:100%;background:linear-gradient(90deg,var(--green-deep),var(--green));border-radius:99px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,var(--gray))}
+.tcount{font-size:12.5px;color:var(--text-faint);margin-top:10px}
+.empty{padding:40px;text-align:center;color:var(--text-faint)}
+
+/* ===== UNIT RANK ===== */
+.unit{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
+.unit:last-child{border:none}
+.unit .rk{font-family:var(--mono);font-size:13px;color:var(--text-faint);width:26px}
+.unit .nm{flex:1;min-width:0}
+.unit .nm b{font-size:14px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unit .ubar{width:160px;flex-shrink:0}
+.unit .ct{font-family:var(--mono);font-size:14px;font-weight:600;width:42px;text-align:right}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;font-size:12.5px;color:var(--text-dim)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* notice */
+.notice{background:var(--surface-2);border:1px solid var(--border-2);border-left:3px solid var(--wheat);
+  border-radius:10px;padding:13px 16px;font-size:13px;color:var(--text-dim);margin-top:18px;display:flex;gap:11px;align-items:flex-start}
+.notice svg{width:17px;height:17px;color:var(--wheat);flex-shrink:0;margin-top:1px}
+
+footer{border-top:1px solid var(--border);margin-top:30px;padding:26px 0 50px;color:var(--text-faint);font-size:12.5px}
+footer a{color:var(--green)}
+footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+
+@media(max-width:860px){
+  .g-2,.g-2b{grid-template-columns:1fr}
+  .hero{padding:32px 0 18px}
+  .live-txt{display:none}
+  .unit .ubar{width:90px}
+}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="wrap topbar-in">
+  <div class="brand"><div class="logo">E</div><div>EMBRAPA 2025<small>Painel de Convocações</small></div></div>
+  <div class="live">
+    <span class="dot"></span>
+    <span class="live-txt">Atualizado em <b id="lastUpdate">—</b></span>
+    <button class="btn" id="refreshBtn" title="Buscar dados mais recentes">
+      <svg id="refIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      <span id="refTxt">Atualizar</span>
+    </button>
+  </div>
+</div></div>
+
+<div class="tabs"><div class="wrap tabs-in" id="tabs">
+  <button class="tab active" data-t="overview">Visão Geral</button>
+  <button class="tab" data-t="cargo">Por Cargo</button>
+  <button class="tab" data-t="timeline">Linha do Tempo</button>
+  <button class="tab" data-t="opcoes">Vagas por Opção</button>
+  <button class="tab" data-t="unidades">Unidades</button>
+  <button class="tab" data-t="projecao">Projeções</button>
+  <button class="tab" data-t="pessoas">Convocados</button>
+</div></div>
+
+<div class="wrap">
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Acompanhe cada <span class="hl">convocação</span> do Concurso EMBRAPA 2025</h1>
+  <p>Tudo o que o concurseiro precisa em um só lugar: ritmo de chamadas, contratações por cargo, vagas em aberto, desistências, projeção de término e a situação detalhada de cada uma das opções de vaga.</p>
+  <div class="hero-meta" id="heroMeta"></div>
+</div>
+
+<!-- ========== OVERVIEW ========== -->
+<section class="section active" id="s-overview">
+  <div class="kpis" id="kpiGrid"></div>
+
+  <div class="sec-head"><h2>Como está o preenchimento</h2><div class="ln"></div><div class="hint">vagas previstas no edital</div></div>
+  <div class="grid g-2">
+    <div class="card">
+      <h3>Funil de convocações</h3>
+      <div class="desc">Do total chamado até a contratação efetiva</div>
+      <div class="chart-box" style="height:230px"><canvas id="funnelChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Situação dos convocados</h3>
+      <div class="desc">Distribuição por status atual</div>
+      <div class="chart-box" style="height:200px"><canvas id="statusChart"></canvas></div>
+      <div class="legend" id="statusLegend"></div>
+    </div>
+  </div>
+
+  <div class="sec-head"><h2>Progresso geral por cargo</h2><div class="ln"></div></div>
+  <div class="card" id="overallBars"></div>
+</section>
+
+<!-- ========== CARGO ========== -->
+<section class="section" id="s-cargo">
+  <div class="sec-head"><h2>Panorama por cargo</h2><div class="ln"></div><div class="hint">% de vagas já contratadas</div></div>
+  <div class="cargo-grid" id="cargoCards"></div>
+
+  <div class="grid g-2b" style="margin-top:16px">
+    <div class="card">
+      <h3>Contratados × vagas em aberto</h3>
+      <div class="desc">Quanto falta para fechar cada cargo</div>
+      <div class="chart-box" style="height:280px"><canvas id="cargoStackChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Taxa de desistência por cargo</h3>
+      <div class="desc">Percentual de convocados que desistiram ou foram excluídos</div>
+      <div class="chart-box" style="height:280px"><canvas id="desistChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TIMELINE ========== -->
+<section class="section" id="s-timeline">
+  <div class="sec-head"><h2>Ritmo de convocações</h2><div class="ln"></div><div class="hint">por semana ISO</div></div>
+  <div class="card">
+    <h3>Convocados por semana</h3>
+    <div class="desc">Volume de novas chamadas a cada semana desde o início</div>
+    <div class="chart-box" style="height:300px"><canvas id="weeklyChart"></canvas></div>
+  </div>
+
+  <div class="grid g-2b" style="margin-top:16px">
+    <div class="card">
+      <h3>Contratações por mês</h3>
+      <div class="desc">Efetivações concluídas mês a mês</div>
+      <div class="chart-box" style="height:260px"><canvas id="monthlyChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Velocidade diária recente</h3>
+      <div class="desc">Convocados/dia e médias móveis (5 e 10 dias)</div>
+      <div class="chart-box" style="height:260px"><canvas id="velocityChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== OPCOES ========== -->
+<section class="section" id="s-opcoes">
+  <div class="sec-head"><h2>Situação de cada opção de vaga</h2><div class="ln"></div><div class="hint" id="opCount"></div></div>
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="opSearch" placeholder="Buscar por código, cargo, área ou subárea…">
+    </div>
+    <select class="selct" id="opCargo"><option value="">Todos os cargos</option></select>
+    <select class="selct" id="opArea"><option value="">Todas as áreas</option></select>
+    <select class="selct" id="opStatus">
+      <option value="">Qualquer situação</option>
+      <option value="open">Com vagas em aberto</option>
+      <option value="full">100% preenchidas</option>
+      <option value="contracting">Em contratação</option>
+    </select>
+  </div>
+  <div class="tablewrap"><div class="tscroll"><table id="opTable">
+    <thead><tr id="opHead"></tr></thead>
+    <tbody id="opBody"></tbody>
+  </table></div></div>
+  <div class="tcount" id="opTotals"></div>
+</section>
+
+<!-- ========== UNIDADES ========== -->
+<section class="section" id="s-unidades">
+  <div class="sec-head"><h2>Ranking de unidades de lotação</h2><div class="ln"></div><div class="hint">por nº de convocados</div></div>
+  <div class="grid g-2">
+    <div class="card" id="unitRank"></div>
+    <div class="card">
+      <h3>Top 12 unidades</h3>
+      <div class="desc">Convocados x já contratados</div>
+      <div class="chart-box" style="height:420px"><canvas id="unitChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PROJECAO ========== -->
+<section class="section" id="s-projecao">
+  <div class="sec-head"><h2>Para onde caminha o concurso</h2><div class="ln"></div><div class="hint">estimativas com base no ritmo atual</div></div>
+  <div class="kpis" id="projKpis"></div>
+  <div class="card" style="margin-top:16px">
+    <h3>Trajetória até o preenchimento total</h3>
+    <div class="desc">Acumulado de contratações e estimativa de conclusão mantido o ritmo recente</div>
+    <div class="chart-box" style="height:320px"><canvas id="projChart"></canvas></div>
+  </div>
+  <div class="notice">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+    <div>As projeções são <b>estimativas estatísticas</b> baseadas na média móvel de convocações dos últimos dias e não representam compromisso oficial da EMBRAPA. O ritmo real depende de novas autorizações de contratação e do calendário interno do órgão.</div>
+  </div>
+</section>
+
+<!-- ========== PESSOAS ========== -->
+<section class="section" id="s-pessoas">
+  <div class="sec-head"><h2>Convocados</h2><div class="ln"></div><div class="hint" id="pCount"></div></div>
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="pSearch" placeholder="Buscar por nome, opção ou unidade…">
+    </div>
+    <select class="selct" id="pStatus"><option value="">Qualquer status</option></select>
+    <select class="selct" id="pLimit"><option value="200">200 resultados</option><option value="500">500</option><option value="2000">Todos</option></select>
+  </div>
+  <div class="tablewrap"><div class="tscroll"><table id="pTable">
+    <thead><tr>
+      <th data-k="col">Colocação</th><th data-k="nome">Nome</th><th data-k="opcao">Opção</th>
+      <th data-k="status">Status</th><th data-k="unidade">Unidade</th><th data-k="lotacao">Lotação</th>
+    </tr></thead>
+    <tbody id="pBody"></tbody>
+  </table></div></div>
+  <div class="tcount" id="pTotals"></div>
+</section>
+
+<footer><div class="fl">
+  <div>Painel independente de acompanhamento · dados extraídos da planilha oficial de controle de convocações. Não é um canal oficial da EMBRAPA.</div>
+  <div>Fonte de dados: <a id="srcLink" href="#" target="_blank" rel="noopener">controle público de convocações</a></div>
+</div></footer>
+</div>
+<script>
+/* ============ DADOS ============ */
+/* Fonte: ./data/data.json gerado pelo coletor proprio e publicado junto ao site.
+   Mesma origem: sem CORS, sempre o dado mais recente que o pipeline publicou. */
+let DATA = null;
+const C = {green:'#3ee06f',greenDeep:'#0f9e4a',wheat:'#e9b24c',cyan:'#48d4dd',blue:'#6ea8fe',coral:'#ff6f6f',violet:'#bd9bf2',gray:'#7b8a7c',grid:'rgba(180,220,180,.08)',text:'#90a892'};
+const STATUS_COLOR={'Contratado':C.green,'Aceitou':C.cyan,'Em contratação':C.wheat,'Convocado':C.blue,'Aguardando aceite':C.blue,'Desistente':C.coral,'Desclassificado':C.gray,'Não se manifestou':C.violet,'Nao se manifestou':C.violet};
+const CARGO_COLOR={'Pesquisador':C.green,'Analista':C.cyan,'Técnico':C.wheat,'Tecnico':C.wheat,'Assistente':C.violet};
+const fmt=n=>(n==null?'—':Number(n).toLocaleString('pt-BR'));
+async function loadData(){const r=await fetch('./data/data.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+
+/* ============ RENDER ============ */
+Chart.defaults.font.family="'IBM Plex Sans',sans-serif";
+Chart.defaults.font.size=12;
+Chart.defaults.color=C.text;
+Chart.defaults.plugins.legend.display=false;
+const charts={};
+function mk(id,cfg){ if(charts[id])charts[id].destroy(); const el=document.getElementById(id); if(el)charts[id]=new Chart(el,cfg); }
+const gridX={grid:{color:C.grid,drawTicks:false},border:{display:false}};
+const gridY={grid:{color:C.grid,drawTicks:false},border:{display:false},beginAtZero:true};
+
+const ICONS={
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>',
+  check:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+  hand:'<path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+  out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  bolt:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'
+};
+const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${ICONS[k]}</svg>`;
+
+function renderHero(){
+  const g=DATA.general, totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
+  document.getElementById('lastUpdate').textContent=(g.last_update||'').split(' - ')[0]||'—';
+  document.getElementById('heroMeta').innerHTML=`
+    <span class="pill">EDITAL 2025</span>
+    <span>📋 <b>${fmt(totalVagas)}</b> vagas previstas</span>
+    <span>⏱ <b>${fmt(g.business_days_elapsed)}</b> dias úteis decorridos</span>
+    <span>📣 <b>${fmt(g.convocados_hoje)}</b> convocados hoje</span>
+    <span>⚡ média <b>${fmt(g.media_diaria_mm10)}</b>/dia (10d)</span>`;
+  const meta=DATA.meta||{};
+  const sl=document.getElementById('srcLink');
+  if(meta.fonte_url){sl.href=meta.fonte_url;} if(meta.fonte_nome){sl.textContent=meta.fonte_nome;}
+}
+
+function renderKPIs(){
+  const g=DATA.general, totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
+  const vagasAbertas=DATA.por_cargo.reduce((s,c)=>s+c.vagas_abertas,0);
+  const pct=(g.total_contratados/totalVagas*100);
+  const k=[
+    {l:'Total convocados',v:g.total_convocados,s:`de ${fmt(totalVagas)} vagas previstas`,i:'users',c:C.blue},
+    {l:'Contratados',v:g.total_contratados,s:`<b>${pct.toFixed(1)}%</b> das vagas preenchidas`,i:'check',c:C.green},
+    {l:'Aguardando / aceitaram',v:g.total_aceitou,s:'em processo de contratação',i:'hand',c:C.cyan},
+    {l:'Taxa de desistência',v:g.pct_desistencias+'%',s:'dos convocados desistiram',i:'out',c:C.coral},
+    {l:'Vagas em aberto',v:vagasAbertas,s:'ainda a preencher',i:'target',c:C.wheat},
+    {l:'Aceite médio',v:g.avg_days_convocado_to_aceitou+' d',s:'da convocação ao aceite',i:'clock',c:C.violet},
+  ];
+  document.getElementById('kpiGrid').innerHTML=k.map(x=>`
+    <div class="kpi" style="--accent:${x.c}">
+      <div class="ic">${ic(x.i)}</div>
+      <div class="lab">${x.l}</div>
+      <div class="val">${typeof x.v==='number'?fmt(x.v):x.v}</div>
+      <div class="sub">${x.s}</div>
+    </div>`).join('');
+}
+
+function renderFunnel(){
+  const g=DATA.general;
+  const totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
+  mk('funnelChart',{type:'bar',data:{labels:['Vagas previstas','Convocados','Aceitaram/em contrat.','Contratados'],
+    datasets:[{data:[totalVagas,g.total_convocados,g.total_aceitou+g.total_contratados,g.total_contratados],
+      backgroundColor:[C.gray,C.blue,C.cyan,C.green],borderRadius:7,barThickness:30}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:c=>fmt(c.raw)+' pessoas'}}},
+      scales:{x:gridX,y:{grid:{display:false},border:{display:false}}}}});
+}
+
+function renderStatus(){
+  const ps=DATA.por_status;
+  const order=['Contratado','Aceitou','Convocado','Não se manifestou','Desclassificado','Desistente'];
+  const labels=order.filter(s=>ps[s]), vals=labels.map(s=>ps[s]), cols=labels.map(s=>STATUS_COLOR[s]||C.gray);
+  mk('statusChart',{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:cols,borderColor:'#0b120c',borderWidth:3,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{tooltip:{callbacks:{label:c=>`${c.label}: ${fmt(c.raw)}`}}}}});
+  const tot=vals.reduce((a,b)=>a+b,0);
+  document.getElementById('statusLegend').innerHTML=labels.map((s,i)=>
+    `<span><i style="background:${cols[i]}"></i>${s} · <b class="mono">${fmt(vals[i])}</b> (${(vals[i]/tot*100).toFixed(0)}%)</span>`).join('');
+}
+
+function renderOverallBars(){
+  const el=document.getElementById('overallBars');
+  el.innerHTML=DATA.por_cargo.map(c=>{
+    const pcContr=(c.contratados/c.total*100), pcProc=(c.em_contratacao/c.total*100);
+    return `<div class="prow">
+      <div class="top"><span class="nm" style="color:${CARGO_COLOR[c.cargo]||C.green}">${c.cargo}</span>
+        <span class="pc">${c.contratados} contratados · ${c.em_contratacao} em proc. · <span style="color:${C.text}">${c.pct_preenchido}% preench.</span></span></div>
+      <div class="bar stack">
+        <i style="width:${pcContr}%"></i>
+        <i class="amber" style="width:${pcProc}%"></i>
+      </div></div>`;
+  }).join('')+`<div class="legend"><span><i style="background:var(--green)"></i>Contratados</span><span><i style="background:var(--wheat)"></i>Em contratação</span><span><i style="background:var(--surface-3)"></i>Vagas em aberto</span></div>`;
+}
+
+function renderCargoCards(){
+  document.getElementById('cargoCards').innerHTML=DATA.por_cargo.map(c=>`
+    <div class="cargo">
+      <div class="ring" style="--p:${c.pct_preenchido}"></div>
+      <div class="tag" style="color:${CARGO_COLOR[c.cargo]}">${c.cargo}</div>
+      <div class="big">${c.pct_preenchido}%</div>
+      <div class="of">${fmt(c.contratados)} contratados de ${fmt(c.total)} vagas · ${c.pct_contratado}% efetivado</div>
+      <div class="mini">
+        <div><b>${fmt(c.em_contratacao)}</b>em contrat.</div>
+        <div><b style="color:${C.wheat}">${fmt(c.vagas_abertas)}</b>em aberto</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderCargoCharts(){
+  const c=DATA.por_cargo, labels=c.map(x=>x.cargo);
+  mk('cargoStackChart',{type:'bar',data:{labels,datasets:[
+    {label:'Contratados',data:c.map(x=>x.contratados),backgroundColor:C.green,borderRadius:5,stack:'s'},
+    {label:'Em contratação',data:c.map(x=>x.em_contratacao),backgroundColor:C.wheat,borderRadius:5,stack:'s'},
+    {label:'Vagas em aberto',data:c.map(x=>x.vagas_abertas),backgroundColor:'#243726',borderRadius:5,stack:'s'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:11,padding:14,usePointStyle:true}}},
+      scales:{x:{...gridX,stacked:true},y:{...gridY,stacked:true}}}});
+  const d=DATA.desistencias.filter(x=>x.cargo!=='Todos');
+  mk('desistChart',{type:'bar',data:{labels:d.map(x=>x.cargo),datasets:[{data:d.map(x=>x.pct),
+    backgroundColor:d.map(x=>x.pct>25?C.coral:x.pct>18?C.wheat:C.green),borderRadius:6,barThickness:42}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:c=>{
+      const r=d[c.dataIndex];return `${r.pct}% · ${r.desistencias} de ${r.convocacoes}`;}}}},
+      scales:{x:gridX,y:{...gridY,ticks:{callback:v=>v+'%'}}}}});
+}
+
+function renderTimeline(){
+  const w=DATA.cumulative.weekly.convocado;
+  mk('weeklyChart',{type:'bar',data:{labels:w.map(x=>x.label.replace('2025-','').replace('2026-','')),
+    datasets:[{data:w.map(x=>x.value),backgroundColor:C.green,borderRadius:5,
+      hoverBackgroundColor:C.cyan,barPercentage:.85}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{title:i=>'Semana '+w[i[0].dataIndex].label,label:c=>fmt(c.raw)+' convocados'}}},
+      scales:{x:gridX,y:gridY}}});
+  const m=DATA.cumulative.monthly_contratados.contratados;
+  mk('monthlyChart',{type:'bar',data:{labels:m.map(x=>x.label),datasets:[{data:m.map(x=>x.value),
+    backgroundColor:C.cyan,borderRadius:6,barThickness:30}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:c=>fmt(c.raw)+' contratações'}}},scales:{x:gridX,y:gridY}}});
+  const v=DATA.velocity;
+  mk('velocityChart',{type:'line',data:{labels:v.map(x=>x.date.slice(5)),datasets:[
+    {label:'Convocados/dia',data:v.map(x=>x.convocados),borderColor:'transparent',backgroundColor:'rgba(110,168,254,.25)',type:'bar',borderRadius:4},
+    {label:'MM5',data:v.map(x=>x.mm5),borderColor:C.green,tension:.4,pointRadius:0,borderWidth:2.5},
+    {label:'MM10',data:v.map(x=>x.mm10),borderColor:C.wheat,tension:.4,pointRadius:0,borderWidth:2,borderDash:[5,4]}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:11,padding:12,usePointStyle:true}}},scales:{x:gridX,y:gridY}}});
+}
+
+function renderUnidades(){
+  const u=DATA.por_unidade.filter(x=>x.unidade!=='Não informada'), max=u[0]?.total||1;
+  document.getElementById('unitRank').innerHTML='<h3>Todas as unidades</h3><div class="desc">'+u.length+' unidades com convocados</div>'+
+    u.map((x,i)=>`<div class="unit"><span class="rk">${i+1}</span>
+      <span class="nm"><b title="${x.unidade}">${x.unidade}</b></span>
+      <span class="ubar"><div class="bar"><i style="width:${x.total/max*100}%"></i></div></span>
+      <span class="ct">${x.total}</span></div>`).join('');
+  const t=u.slice(0,12);
+  mk('unitChart',{type:'bar',data:{labels:t.map(x=>x.unidade.replace(/ - .*/,'')),datasets:[
+    {label:'Convocados',data:t.map(x=>x.total),backgroundColor:'#243726',borderRadius:4},
+    {label:'Contratados',data:t.map(x=>x.contratados),backgroundColor:C.green,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:11,padding:12,usePointStyle:true}}},
+      scales:{x:gridX,y:{grid:{display:false},border:{display:false}}}}});
+}
+
+function renderProjecao(){
+  const g=DATA.general, rd=DATA.remaining_days.find(x=>x.cargo==='ALL')||{};
+  const totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
+  const vagasAbertas=DATA.por_cargo.reduce((s,c)=>s+c.vagas_abertas,0);
+  const rate=g.media_diaria_mm10||1;
+  const diasEst=Math.ceil(vagasAbertas/Math.max(rate,0.5));
+  const dt=new Date(); let added=0; while(added<diasEst){dt.setDate(dt.getDate()+1);const wd=dt.getDay();if(wd!==0&&wd!==6)added++;}
+  const estDate=dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const k=[
+    {l:'Vagas restantes',v:vagasAbertas,s:`${(vagasAbertas/totalVagas*100).toFixed(0)}% do edital`,i:'target',c:C.wheat},
+    {l:'Ritmo atual',v:rate+'/dia',s:'média móvel de 10 dias',i:'bolt',c:C.green},
+    {l:'Dias úteis estimados',v:diasEst,s:'mantido o ritmo recente',i:'clock',c:C.cyan},
+    {l:'Previsão de término',v:estDate,s:'estimativa — não oficial',i:'cal',c:C.violet},
+  ];
+  document.getElementById('projKpis').innerHTML=k.map(x=>`
+    <div class="kpi" style="--accent:${x.c}"><div class="ic">${ic(x.i)}</div>
+      <div class="lab">${x.l}</div><div class="val" style="font-size:${String(x.v).length>10?'20px':'34px'}">${typeof x.v==='number'?fmt(x.v):x.v}</div>
+      <div class="sub">${x.s}</div></div>`).join('');
+  // projeção acumulada
+  const m=DATA.cumulative.monthly_contratados.contratados;
+  let acc=0; const real=m.map(x=>{acc+=x.value;return acc;});
+  const lastReal=real[real.length-1]||g.total_contratados;
+  const monthsAhead=Math.ceil(diasEst/21);
+  const projLabels=[...m.map(x=>x.label)], projData=[...real.map(()=>null)];
+  projData[real.length-1]=lastReal;
+  let p=lastReal; const perMonth=rate*21;
+  for(let i=1;i<=monthsAhead;i++){const d=new Date();d.setMonth(d.getMonth()+i);
+    projLabels.push(d.toLocaleDateString('pt-BR',{month:'2-digit',year:'2-digit'}));
+    real.push(null); p=Math.min(totalVagas,p+perMonth); projData.push(Math.round(p));}
+  mk('projChart',{type:'line',data:{labels:projLabels,datasets:[
+    {label:'Contratados (real)',data:real,borderColor:C.green,backgroundColor:'rgba(62,224,111,.12)',fill:true,tension:.35,pointRadius:3,borderWidth:2.5},
+    {label:'Projeção',data:projData,borderColor:C.wheat,borderDash:[6,5],tension:.35,pointRadius:0,borderWidth:2},
+    {label:'Meta (edital)',data:projLabels.map(()=>totalVagas),borderColor:C.gray,borderDash:[2,4],pointRadius:0,borderWidth:1.5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:11,padding:14,usePointStyle:true}}},
+      scales:{x:gridX,y:gridY}}});
+}
+/* ============ TABELA DE OPÇÕES ============ */
+const OP_COLS=[
+  {k:'opcao',t:'Opção',cls:'mono'},{k:'cargo',t:'Cargo'},{k:'subarea',t:'Subárea'},
+  {k:'vagas',t:'Vagas',n:1},{k:'convocados',t:'Convoc.',n:1},{k:'contratados',t:'Contrat.',n:1},
+  {k:'em_contratacao',t:'Em proc.',n:1},{k:'desistencias',t:'Desist.',n:1},{k:'pct',t:'Preench.',n:1}
+];
+let opSort={k:'pct',dir:-1};
+function buildOpHead(){
+  document.getElementById('opHead').innerHTML=OP_COLS.map(c=>
+    `<th data-k="${c.k}" class="${c.n?'num':''} ${opSort.k===c.k?'sorted':''}">${c.t} <span class="ar">${opSort.k===c.k?(opSort.dir>0?'▲':'▼'):'↕'}</span></th>`).join('');
+  document.querySelectorAll('#opHead th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(opSort.k===k)opSort.dir*=-1; else{opSort.k=k;opSort.dir=(k==='cargo'||k==='subarea'||k==='opcao')?1:-1;}
+    buildOpHead();renderOpTable();});
+}
+function fillOpFilters(){
+  const cargos=[...new Set(DATA.opcoes.map(o=>o.cargo))].filter(Boolean).sort();
+  const areas=[...new Set(DATA.opcoes.map(o=>o.area))].filter(Boolean).sort();
+  document.getElementById('opCargo').innerHTML='<option value="">Todos os cargos</option>'+cargos.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('opArea').innerHTML='<option value="">Todas as áreas</option>'+areas.map(a=>`<option>${a}</option>`).join('');
+}
+function renderOpTable(){
+  const q=document.getElementById('opSearch').value.toLowerCase().trim();
+  const fc=document.getElementById('opCargo').value, fa=document.getElementById('opArea').value, fs=document.getElementById('opStatus').value;
+  let rows=DATA.opcoes.filter(o=>{
+    if(fc&&o.cargo!==fc)return false; if(fa&&o.area!==fa)return false;
+    if(fs==='open'&&!(o.vagas-o.contratados>0))return false;
+    if(fs==='full'&&o.pct<100)return false;
+    if(fs==='contracting'&&o.em_contratacao<=0)return false;
+    if(q&&!(`${o.opcao} ${o.cargo} ${o.area} ${o.subarea}`.toLowerCase().includes(q)))return false;
+    return true;});
+  rows.sort((a,b)=>{const k=opSort.k;let x=a[k],y=b[k];
+    if(typeof x==='string'){x=x.toLowerCase();y=y.toLowerCase();return x<y?-opSort.dir:x>y?opSort.dir:0;}
+    return (x-y)*opSort.dir;});
+  document.getElementById('opBody').innerHTML = rows.length? rows.map(o=>{
+    const cc=CARGO_COLOR[o.cargo]||C.gray;
+    return `<tr>
+      <td class="mono">${o.opcao}</td>
+      <td><span class="tag-cargo" style="background:${cc}1f;color:${cc}">${o.cargo}</span></td>
+      <td title="${o.area}">${o.subarea||'—'}</td>
+      <td class="num">${o.vagas}</td><td class="num">${o.convocados}</td>
+      <td class="num" style="color:${C.green}">${o.contratados}</td>
+      <td class="num">${o.em_contratacao||'—'}</td>
+      <td class="num" style="color:${o.desistencias?C.coral:'inherit'}">${o.desistencias||'—'}</td>
+      <td class="num"><span class="minibar"><i style="width:${Math.min(o.pct,100)}%;${o.pct>=100?'background:'+C.green:''}"></i></span>${o.pct}%</td>
+    </tr>`;}).join('') : '<tr><td colspan="9" class="empty">Nenhuma opção encontrada com esses filtros.</td></tr>';
+  document.getElementById('opCount').textContent=DATA.opcoes.length+' opções de vaga';
+  const sv=rows.reduce((s,o)=>s+o.vagas,0),sc=rows.reduce((s,o)=>s+o.contratados,0);
+  document.getElementById('opTotals').textContent=`Exibindo ${rows.length} opções · ${fmt(sv)} vagas · ${fmt(sc)} contratados (${sv?(sc/sv*100).toFixed(1):0}%)`;
+}
+
+/* ============ TABELA DE PESSOAS ============ */
+let pSort={k:'status',dir:1};
+function fillPStatus(){
+  const sts=[...new Set(DATA.pessoas.map(p=>p.status))].sort();
+  document.getElementById('pStatus').innerHTML='<option value="">Qualquer status</option>'+sts.map(s=>`<option>${s}</option>`).join('');
+  document.querySelectorAll('#pTable thead th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(pSort.k===k)pSort.dir*=-1; else{pSort.k=k;pSort.dir=1;} renderPTable();});
+}
+function renderPTable(){
+  const q=document.getElementById('pSearch').value.toLowerCase().trim();
+  const fs=document.getElementById('pStatus').value, lim=+document.getElementById('pLimit').value;
+  let rows=DATA.pessoas.filter(p=>{
+    if(fs&&p.status!==fs)return false;
+    if(q&&!(`${p.nome} ${p.opcao} ${p.unidade} ${p.lotacao}`.toLowerCase().includes(q)))return false;
+    return true;});
+  rows.sort((a,b)=>{let x=(a[pSort.k]||'').toString().toLowerCase(),y=(b[pSort.k]||'').toString().toLowerCase();return x<y?-pSort.dir:x>y?pSort.dir:0;});
+  const total=rows.length; rows=rows.slice(0,lim);
+  document.getElementById('pBody').innerHTML= rows.length? rows.map(p=>{
+    const c=STATUS_COLOR[p.status]||C.gray;
+    return `<tr><td class="mono">${p.col}</td><td>${p.nome}</td><td class="mono">${p.opcao}</td>
+      <td><span class="st" style="--c:${c}">${p.status}</span></td>
+      <td>${p.unidade}</td><td>${p.lotacao||'—'}</td></tr>`;}).join('')
+    : '<tr><td colspan="6" class="empty">Ninguém encontrado.</td></tr>';
+  document.getElementById('pCount').textContent=fmt(DATA.pessoas.length)+' convocados no total';
+  document.getElementById('pTotals').textContent=`${fmt(total)} resultados · exibindo ${fmt(Math.min(total,lim))}`;
+}
+
+/* ============ INIT ============ */
+function renderAll(){
+  renderHero();renderKPIs();renderFunnel();renderStatus();renderOverallBars();
+  renderCargoCards();renderCargoCharts();renderTimeline();renderUnidades();renderProjecao();
+  fillOpFilters();buildOpHead();renderOpTable();fillPStatus();renderPTable();
+}
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('s-'+t.dataset.t).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>Object.values(charts).forEach(c=>c.resize()),60);
+});
+// filtros
+['opSearch','opCargo','opArea','opStatus'].forEach(id=>document.getElementById(id).addEventListener('input',renderOpTable));
+['pSearch','pStatus','pLimit'].forEach(id=>document.getElementById(id).addEventListener('input',renderPTable));
+// refresh: recarrega o data.json publicado pelo coletor
+async function refresh(){
+  const b=document.getElementById('refreshBtn'),i=document.getElementById('refIcon'),t=document.getElementById('refTxt');
+  b.disabled=true;i.classList.add('spin');t.textContent='Atualizando…';
+  try{ DATA=await loadData(); renderAll(); t.textContent='Atualizado!'; }
+  catch(e){ console.warn(e); t.textContent='Sem conexão'; }
+  setTimeout(()=>{t.textContent='Atualizar';i.classList.remove('spin');b.disabled=false;},1600);
+}
+document.getElementById('refreshBtn').onclick=refresh;
+
+function showLoadError(msg){
+  document.querySelector('.wrap').insertAdjacentHTML('afterbegin',
+   `<div class="notice" style="border-left-color:var(--coral);margin:24px 0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div><b>Não consegui carregar os dados (${msg}).</b><br>
+      Se você abriu o arquivo direto (file://), o navegador bloqueia a leitura do data.json.
+      Rode um servidor local na pasta <code>site/</code>:<br>
+      <code style="color:var(--green)">python -m http.server 8000</code> e abra <code>http://localhost:8000</code>.</div>
+    </div>`);
+}
+
+// boot
+(async()=>{
+  try{ DATA=await loadData(); renderAll(); }
+  catch(e){ console.error(e); showLoadError(e.message); }
+})();
+</script>
+</body>
+</html>

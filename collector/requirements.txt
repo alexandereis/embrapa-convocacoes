@@ -1,0 +1,2 @@
+# O coletor usa apenas a biblioteca padrao do Python 3.9+.
+# Nenhuma dependencia externa necessaria.

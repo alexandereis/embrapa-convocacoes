@@ -35,12 +35,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # eleva o rate limit da API
         run: python collector/collect.py
 
-      - name: Commitar data.json se mudou
+      - name: Commitar dados se mudaram
         run: |
           git config user.name "embrapa-collector-bot"
           git config user.email "actions@users.noreply.github.com"
-          if [ -n "$(git status --porcelain site/data/data.json)" ]; then
-            git add site/data/data.json
+          # data.json + estado da timeline (a serie temporal propria cresce a
+          # cada coleta). O seed e o catalogo sao versionados manualmente.
+          git add site/data/data.json site/data/timeline_state.json 2>/dev/null || true
+          if [ -n "$(git status --porcelain site/data/data.json site/data/timeline_state.json)" ]; then
             git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           else

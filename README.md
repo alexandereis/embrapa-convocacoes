@@ -1,39 +1,62 @@
 # Painel de Convocações · Concurso EMBRAPA 2025
 
 Dashboard estático que acompanha em tempo quase real as convocações e contratações
-do concurso da EMBRAPA, com um **coletor de dados próprio** que recalcula todas as
-métricas e publica um `data.json` versionado. Tudo automatizado via GitHub Actions.
+do concurso da EMBRAPA. A fonte é o **painel oficial da EMBRAPA** (Looker Studio):
+o coletor replica a consulta pública do painel, **recalcula todas as métricas do
+zero** e publica um `data.json` versionado. Tudo automatizado via GitHub Actions.
 
 ```
 embrapa-dashboard/
 ├── collector/                  # o coletor (Python puro, sem dependências)
 │   ├── collect.py              # orquestrador: extrai → recalcula → grava data.json
 │   ├── transform.py            # TODAS as métricas são calculadas aqui
+│   ├── timeline.py             # série temporal própria (seed + acúmulo)
 │   ├── config.py               # qual fonte usar + parâmetros
+│   ├── build_catalog.py        # (1x) gera o catálogo opção→cargo/vagas
+│   ├── seed_history.py         # (1x) semeia a curva histórica da timeline
+│   ├── data/catalog_opcoes.csv # catálogo de edital (versionado)
 │   └── extractors/             # adaptadores de fonte (plugáveis)
 │       ├── base.py             # interface RawData
-│       ├── upstream_repo.py    # adaptador ATIVO (fonte pública consolidada)
-│       └── google_sheet.py.exemplo  # modelo p/ migrar para planilha própria
+│       ├── looker_studio.py    # adaptador ATIVO (painel OFICIAL, batchedDataV2)
+│       ├── upstream_repo.py    # adaptador alternativo (fonte da comunidade)
+│       └── google_sheet.py.exemplo  # modelo p/ planilha própria
 ├── site/
 │   ├── index.html              # o dashboard (lê ./data/data.json)
-│   └── data/data.json          # gerado pelo coletor (commitado pelo Actions)
+│   └── data/
+│       ├── data.json           # gerado pelo coletor (commitado pelo Actions)
+│       ├── timeline_seed.json  # curva histórica semeada (1x)
+│       └── timeline_state.json # snapshots acumulados pelo coletor
 ├── .github/workflows/coleta.yml# cron de hora em hora + deploy no Pages
 └── run_local.sh                # rodar tudo localmente
 ```
 
 ## Como funciona
 
-1. O **coletor** (`collect.py`) chama o adaptador de fonte ativo, que baixa os dados
-   **brutos** (lista de convocados, resumo por opção e os eventos datados de
-   convocação/contratação).
-2. O **transform** recalcula do zero: totais por status e cargo, percentuais,
-   desistências, séries semanais/mensais, velocidade diária com médias móveis,
-   ranking de unidades, distribuição de opções e projeção de término. Nada vem
-   "pronto" da fonte.
-3. O resultado é gravado em `site/data/data.json`.
-4. O **dashboard** carrega esse JSON (mesma origem, sem CORS) e renderiza tudo.
-5. O **GitHub Actions** roda o coletor de hora em hora, commita o `data.json` se
-   mudou e republica o site.
+1. O **coletor** (`collect.py`) chama o adaptador `looker_studio`, que replica a
+   consulta `batchedDataV2` do painel oficial (acesso anônimo) e pagina **todas**
+   as ~1045 pessoas: colocação/cota, nome, opção, status, unidade e cidade.
+2. O resumo **por opção/cargo** é **recalculado** a partir dos status oficiais,
+   cruzado com o catálogo estático opção→cargo/área/subárea/vagas (`build_catalog.py`,
+   dado de edital, versionado).
+3. A **linha do tempo** é própria (`timeline.py`): a curva histórica é semeada uma
+   vez (`seed_history.py`) e, a cada coleta, só quem é novo/mudou de status gera um
+   evento datado — sem depender de datas do oficial (que não as expõe).
+4. O **transform** recalcula tudo: totais por status/cargo/cota, percentuais,
+   desistências, séries semanais/mensais, velocidade, ranking de unidades, projeção.
+5. O resultado vai para `site/data/data.json`; o **dashboard** lê esse JSON.
+6. O **GitHub Actions** roda de hora em hora, commita `data.json` + `timeline_state.json`
+   e republica o site.
+
+## Primeira configuração (uma vez)
+
+Antes da primeira coleta, gere o catálogo e semeie o histórico:
+
+```bash
+python3 collector/build_catalog.py   # cria collector/data/catalog_opcoes.csv
+python3 collector/seed_history.py     # cria site/data/timeline_seed.json
+```
+
+Ambos são versionados no repo; depois disso o coletor é independente no dia a dia.
 
 ## Rodar localmente
 
@@ -42,7 +65,7 @@ Pré-requisito: Python 3.9+ (nenhuma biblioteca externa).
 ```bash
 ./run_local.sh
 # ou manualmente:
-python3 collector/collect.py          # gera site/data/data.json
+python3 collector/collect.py          # gera site/data/data.json (puxa do oficial)
 cd site && python3 -m http.server 8000
 # abra http://localhost:8000
 ```
@@ -51,6 +74,11 @@ cd site && python3 -m http.server 8000
 > leitura do `data.json`. Use sempre um servidor local (o comando acima).
 
 Validar sem gravar nada: `python3 collector/collect.py --check`
+
+### Scripts de diagnóstico (opcionais)
+
+`probe_looker.py`, `probe_filters.py` e `test_looker_table.py` ajudam a inspecionar
+o painel oficial e validar a coleta — úteis se o Google mudar algo no `batchedDataV2`.
 
 ## Publicar online (GitHub Pages + Actions) — passo a passo
 
@@ -68,9 +96,9 @@ Esta é a opção recomendada: gratuita, sem servidor, e a automação já vem p
    em *Build and deployment* → *Source* = **GitHub Actions**.
 3. **Permita que o Actions escreva no repo**: *Settings* → *Actions* → *General* →
    *Workflow permissions* → marque **Read and write permissions** → *Save*.
-   (Necessário para o bot commitar o `data.json`.)
+   (Necessário para o bot commitar o `data.json` e o `timeline_state.json`.)
 4. **Dispare o primeiro deploy**: aba *Actions* → workflow *Coleta e Deploy* →
-   *Run workflow*. Ele coleta os dados, commita o `data.json` e publica.
+   *Run workflow*. Ele coleta os dados, commita os arquivos e publica.
 5. Pronto. O site fica em `https://SEU_USUARIO.github.io/SEU_REPO/`.
    A partir daí, atualiza sozinho a cada hora (`cron` no workflow).
 
@@ -81,18 +109,19 @@ Para mudar a frequência, edite o `cron` em `.github/workflows/coleta.yml`
 Crie um arquivo `site/CNAME` com seu domínio (ex.: `convocacoes.seudominio.com.br`)
 e aponte um registro CNAME no seu DNS para `SEU_USUARIO.github.io`.
 
-## Trocar a fonte de dados
+## Fonte de dados e adaptadores
 
-O adaptador ativo (`upstream_repo`) ingere a fonte pública consolidada que já
-existe. Para tornar o painel 100% independente, crie seu próprio adaptador:
+O adaptador ativo é o `looker_studio`: lê o **painel oficial da EMBRAPA** via a
+consulta pública `batchedDataV2` (acesso anônimo, ~1 requisição/hora — uso leve e
+respeitoso de dado público). Parâmetros em `config.py` (`LOOKER_*`).
 
-1. Copie `extractors/google_sheet.py.exemplo` para `extractors/google_sheet.py`.
-2. Publique sua planilha como CSV (*Arquivo → Compartilhar → Publicar na web*)
-   e cole as URLs no arquivo. Ajuste os nomes das colunas.
-3. Registre o adaptador em `extractors/__init__.py`.
-4. Em `config.py`, defina `EXTRACTOR = "google_sheet"`.
+Se o Google mudar o endpoint/consulta, rode os scripts de diagnóstico
+(`probe_looker.py` / `test_looker_table.py`) para recapturar e ajustar.
 
-O `transform.py` e o site **não mudam**.
+Adaptadores alternativos continuam disponíveis (basta trocar `EXTRACTOR` em
+`config.py`): `upstream_repo` (fonte da comunidade) e o modelo
+`google_sheet.py.exemplo` (planilha própria). O `transform.py` e o site **não
+mudam** ao trocar de fonte.
 
 ## Alternativas de hospedagem
 
@@ -105,6 +134,8 @@ O `transform.py` e o site **não mudam**.
 
 ## Aviso
 
-Painel **independente** de acompanhamento, baseado em dados públicos. Não é um
-canal oficial da EMBRAPA. As projeções são estimativas estatísticas e não
-representam compromisso do órgão. Dê sempre crédito à fonte usada (rodapé do site).
+Painel **independente** de acompanhamento, baseado no painel público oficial da
+EMBRAPA. Não é um canal oficial da EMBRAPA. As projeções são estimativas
+estatísticas e não representam compromisso do órgão. A curva histórica da linha do
+tempo foi semeada uma única vez a partir de dados públicos da comunidade; daqui em
+diante o histórico é acumulado pelo próprio coletor.

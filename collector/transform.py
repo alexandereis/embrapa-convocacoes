@@ -28,6 +28,18 @@ def _business_days(d0, d1):
     return n
 
 
+def _cota(colocacao):
+    """Extrai a cota da colocacao (ex.: '10ª AC', 'REC 2º PCD')."""
+    s = (colocacao or "").upper()
+    if "PPP" in s:
+        return "PPP"
+    if "PCD" in s or "PNE" in s:
+        return "PCD"
+    if "AC" in s:
+        return "AC"
+    return "Outros"
+
+
 def _moving_avg(values, window):
     out = []
     for i in range(len(values)):
@@ -144,6 +156,17 @@ def build(raw):
                 "lotacao": p["lotacao"]}
                for p in pessoas if p["status"] in ("Aceitou", "Convocado")]
 
+    # ---------- distribuicao por cota ----------
+    pc = defaultdict(lambda: {"total": 0, "contratados": 0})
+    for p in pessoas:
+        c = _cota(p["colocacao"])
+        pc[c]["total"] += 1
+        if p["status"] == "Contratado":
+            pc[c]["contratados"] += 1
+    ordem_cota = {"AC": 0, "PPP": 1, "PCD": 2, "Outros": 3}
+    por_cota = sorted(({"cota": k, **v} for k, v in pc.items()),
+                      key=lambda x: ordem_cota.get(x["cota"], 9))
+
     # ---------- general ----------
     total_vagas = sum(c["total"] for c in por_cargo)
     total_convocados = sum(c["convocados"] for c in cg.values()) or len(pessoas)
@@ -184,7 +207,9 @@ def build(raw):
         },
         "velocity": velocity,
         "opcoes": opcoes,
+        "por_cota": por_cota,
         "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
+                     "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",
                      "lotacao": p["lotacao"]} for p in pessoas],
         "aceites_pendentes": aceites,

@@ -161,6 +161,7 @@ tbody tr:last-child td{border-bottom:none}
 .st::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,var(--gray))}
 .tcount{font-size:12.5px;color:var(--text-faint);margin-top:10px}
 .empty{padding:40px;text-align:center;color:var(--text-faint)}
+.pend{font-size:12px;font-style:italic;color:var(--text-faint);opacity:.85}
 
 /* ===== UNIT RANK ===== */
 .unit{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
@@ -246,6 +247,9 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
 
   <div class="sec-head"><h2>Progresso geral por cargo</h2><div class="ln"></div></div>
   <div class="card" id="overallBars"></div>
+
+  <div class="sec-head"><h2>Convocações por cota</h2><div class="ln"></div><div class="hint">ampla concorrência e reserva de vagas</div></div>
+  <div class="card" id="cotaBars"></div>
 </section>
 
 <!-- ========== CARGO ========== -->
@@ -425,7 +429,7 @@ function renderKPIs(){
     {l:'Aguardando / aceitaram',v:g.total_aceitou,s:'em processo de contratação',i:'hand',c:C.cyan},
     {l:'Taxa de desistência',v:g.pct_desistencias+'%',s:'dos convocados desistiram',i:'out',c:C.coral},
     {l:'Vagas em aberto',v:vagasAbertas,s:'ainda a preencher',i:'target',c:C.wheat},
-    {l:'Aceite médio',v:g.avg_days_convocado_to_aceitou+' d',s:'da convocação ao aceite',i:'clock',c:C.violet},
+    {l:'Aceite médio',v:(g.avg_days_convocado_to_aceitou!=null?g.avg_days_convocado_to_aceitou+' d':'—'),s:'da convocação ao aceite',i:'clock',c:C.violet},
   ];
   document.getElementById('kpiGrid').innerHTML=k.map(x=>`
     <div class="kpi" style="--accent:${x.c}">
@@ -473,6 +477,19 @@ function renderOverallBars(){
   }).join('')+`<div class="legend"><span><i style="background:var(--green)"></i>Contratados</span><span><i style="background:var(--wheat)"></i>Em contratação</span><span><i style="background:var(--surface-3)"></i>Vagas em aberto</span></div>`;
 }
 
+const COTA_LABEL={'AC':'Ampla concorrência','PPP':'Pretos, pardos e indígenas','PCD':'Pessoas com deficiência','Outros':'Outros'};
+function renderCota(){
+  const el=document.getElementById('cotaBars'); if(!el)return;
+  const cotas=DATA.por_cota||[]; if(!cotas.length){el.innerHTML='<div class="empty">Sem dados de cota.</div>';return;}
+  const max=Math.max(...cotas.map(c=>c.total),1);
+  el.innerHTML=cotas.map(c=>{
+    const pcContr=(c.contratados/c.total*100);
+    return `<div class="prow">
+      <div class="top"><span class="nm">${c.cota} · <span style="color:var(--text-faint);font-weight:500">${COTA_LABEL[c.cota]||''}</span></span>
+        <span class="pc">${fmt(c.total)} convocados · <span style="color:${C.green}">${fmt(c.contratados)} contratados</span></span></div>
+      <div class="bar" style="width:${c.total/max*100}%"><i style="width:${pcContr}%"></i></div></div>`;
+  }).join('')+`<div class="legend"><span><i style="background:var(--green)"></i>Contratados</span><span><i style="background:var(--surface-3)"></i>Demais status</span></div>`;
+}
 function renderCargoCards(){
   document.getElementById('cargoCards').innerHTML=DATA.por_cargo.map(c=>`
     <div class="cargo">
@@ -642,9 +659,12 @@ function renderPTable(){
   const total=rows.length; rows=rows.slice(0,lim);
   document.getElementById('pBody').innerHTML= rows.length? rows.map(p=>{
     const c=STATUS_COLOR[p.status]||C.gray;
+    const semLoc=!p.unidade||p.unidade==='Não informada'||p.unidade==='Nao informada';
+    const und=semLoc?`<span class="pend">aguardando escolha de localidade</span>`:p.unidade;
+    const lot=semLoc?'':(p.lotacao||'—');
     return `<tr><td class="mono">${p.col}</td><td>${p.nome}</td><td class="mono">${p.opcao}</td>
       <td><span class="st" style="--c:${c}">${p.status}</span></td>
-      <td>${p.unidade}</td><td>${p.lotacao||'—'}</td></tr>`;}).join('')
+      <td>${und}</td><td>${lot}</td></tr>`;}).join('')
     : '<tr><td colspan="6" class="empty">Ninguém encontrado.</td></tr>';
   document.getElementById('pCount').textContent=fmt(DATA.pessoas.length)+' convocados no total';
   document.getElementById('pTotals').textContent=`${fmt(total)} resultados · exibindo ${fmt(Math.min(total,lim))}`;
@@ -652,7 +672,7 @@ function renderPTable(){
 
 /* ============ INIT ============ */
 function renderAll(){
-  renderHero();renderKPIs();renderFunnel();renderStatus();renderOverallBars();
+  renderHero();renderKPIs();renderFunnel();renderStatus();renderOverallBars();renderCota();
   renderCargoCards();renderCargoCharts();renderTimeline();renderUnidades();renderProjecao();
   fillOpFilters();buildOpHead();renderOpTable();fillPStatus();renderPTable();
 }

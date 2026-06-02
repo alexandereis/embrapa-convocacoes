@@ -1,8 +1,10 @@
 """Registro de adaptadores de extracao."""
 from . import upstream_repo
+from . import looker_studio
 
 REGISTRY = {
     upstream_repo.UpstreamRepoExtractor.name: upstream_repo.UpstreamRepoExtractor,
+    looker_studio.LookerStudioExtractor.name: looker_studio.LookerStudioExtractor,
 }
 
 

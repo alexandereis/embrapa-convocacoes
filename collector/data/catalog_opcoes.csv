@@ -1,0 +1,190 @@
+OPCAO,CARGO,AREA,SUBAREA,VAGAS
+40000002,Técnico,Laboratório e Campos Experimentais,Manejo Animal,18
+40000007,Assistente,Laboratório e Campos Experienciais,Manejo Animal,22
+40000012,Analista,Gestão de Pessoas,Saúde Ocupacional,1
+40000013,Analista,Laboratórios e Campos Experimentais,Cultura de Tecidos,3
+40000015,Pesquisador,Ciências Biológicas,Conservação de Recursos Genéticos Vegetais,1
+40000035,Assistente,"Suprimento, Manutenção e Serviços",Operador de Máquinas Agrícolas e Veículos,37
+40000042,Analista,Ciências Biológicas,Botânica e Ecologia,1
+40000043,Pesquisador,Ciências Exatas e da Terra,Geoprocessamento,1
+40000058,Pesquisador,Ciências Agrárias,Virologia Vegetal,3
+40000062,Pesquisador,Ciências Agrárias,Entomologia Agrícola,11
+40000065,Pesquisador,Nanotecnologia,Nanotecnologia,2
+40000084,Técnico,Laboratório e Campos Experimentais,Manejo Vegetal,112
+40000092,Pesquisador,Ciências Agrárias,Sistema de Produção de Tuberosas,1
+40000113,Pesquisador,Ciências Exatas e da Terra,Sistemas de Informação Geográfica (SIG) e Desenvolvimento Territorial,1
+40000115,Pesquisador,Ciências Sociais Aplicadas,Desenvolvimento Territorial e Turismo,1
+40000116,Pesquisador,Ciências Sociais Aplicadas,Sociologia e Antropologia da Alimentação,2
+40000118,Pesquisador,Ciências Agrárias,Sistemas Agrícolas Tradicionais (SATs),1
+40000119,Pesquisador,Ciências Biológicas,Etnobotânica,1
+40000127,Técnico,"Suprimento, Manutenção e Serviços",Suporte à Gestão,19
+40000131,Pesquisador,Ciências da Saúde,Nutrição,1
+40000133,Pesquisador,Ciências Biológicas,Agro sociobiodiversidade e Sementes Crioulas,1
+40000134,Pesquisador,Ciência e Tecnologia de Alimentos,Tecnologia e Inovação Alimentar para Gastronomia,3
+40000141,Analista,Laboratórios e Campos Experimentais,Química,5
+40000150,Analista,Ciência e Tecnologia de Alimentos,Ciência de Alimentos de Origem Animal,1
+40000175,Pesquisador,Ciências Exatas e da Terra,Engenharia,1
+40000176,Analista,Ciências Sociais Aplicadas,Ciências Sociais Aplicadas à Agropecuária,9
+40000188,Técnico,Laboratório e Campos Experimentais,Laboratório,59
+40000202,Analista,Gestão Estratégica,"Riscos, Conformidade e Transparência",2
+40000205,Analista,Laboratórios e Campos Experimentais,Biofísica Ambiental,1
+40000210,Analista,Laboratórios e Campos Experimentais,Apoio a Campo Experimental,7
+40000224,Pesquisador,Ciências Exatas e da Terra,Energias Renováveis,1
+40000237,Analista,Métodos Quantitativos Avançados,Métodos Quantitativos,4
+40000262,Técnico,Laboratório e Campos Experimentais,Bioquímica e Biologia Molecular,1
+40000268,Pesquisador,Ciências Agrárias,Melhoramento Genético Animal,6
+40000271,Pesquisador,Produção Aquícola,Manejo e Conservação de Recursos Pesqueiros,2
+40000281,Analista,Ciência e Tecnologia de Alimentos,Ciência de Alimentos de Organismos Aquáticos,1
+40000288,Técnico,"Suprimento, Manutenção e Serviços",Aquicultura,3
+40000322,Pesquisador,Ciências Exatas e da Terra,Bioprocessos para Energias Renováveis,1
+40000332,Analista,Ciências Biológicas,Recursos Genéticos e Melhoramento Genético Vegetal,4
+40000338,Pesquisador,Ciências Exatas e da Terra,Agricultura Digital,1
+40000339,Pesquisador,Ciências Exatas e da Terra,Impactos Ambientais,1
+40000345,Pesquisador,Ciências Biológicas,Biologia Sintética e Ciências Ômicas,2
+40000346,Pesquisador,Ciências Exatas e da Terra,Química de Produtos Naturais,1
+40000353,Analista,Nanotecnologia,Nanotecnologia,2
+40000361,Pesquisador,Ciências Agrárias,Sistemas de Produção de Caprinos e Ovinos,1
+40000373,Pesquisador,Ciências Exatas e da Terra,Agricultura e Climatologia,7
+40000379,Analista,Ciências Agrárias,Clínica e Cirurgia de Caprinos e Ovinos,1
+40000383,Analista,Gestão Estratégica,Governança e Estratégia,7
+40000402,Pesquisador,Ciências Agrárias,Sistemas de Produção Animal,3
+40000404,Pesquisador,Engenharias,Robótica e Sensoriamento,1
+40000405,Pesquisador,Espectroscopia Aplicada,Instrumentação em Ressonância Magnética Nuclear,1
+40000408,Analista,Orçamento e Finanças,Orçamento e Finanças,2
+40000432,Analista,Transferência de Tecnologia e Comunicação,Jornalismo,7
+40000435,Pesquisador,Ciências Agrárias,Modelagem e Simulação em Sistemas Agrícolas,1
+40000457,Pesquisador,Ciências Agrárias,Ambiência e Bioclimatologia Animal,2
+40000458,Pesquisador,Ciências Agrárias,Sistemas de Produção de Leite,1
+40000463,Analista,Transferência de Tecnologia e Comunicação,Designer Gráfico,6
+40000464,Analista,Laboratórios e Campos Experimentais,Apoio a Campo Experimental Produção Animal,4
+40000497,Analista,Transferência de Tecnologia e Comunicação,Gestão da Propriedade Intelectual para a Inovação,5
+40000502,Pesquisador,Ciências Biológicas,Fisiologia Vegetal,1
+40000519,Pesquisador,Ciências Agrárias,Bacteriologia Vegetal,3
+40000528,Pesquisador,Ciências Agrárias,Sistema de Produção de Olerícolas,3
+40000551,Analista,Laboratórios e Campos Experimentais,Gestão da Qualidade Laboratorial,7
+40000564,Pesquisador,Ciências Sociais Aplicadas,Ciências Econômicas Aplicadas à Agropecuária,2
+40000605,Analista,Ciências Biológicas,Biologia Sintética e Ciências Ômicas,1
+40000616,Analista,Gestão Estratégica,Governança Sustentável ESG,2
+40000632,Pesquisador,Ciências Agrárias,Fitotecnia,6
+40000642,Analista,Gestão da Informação,Avaliação de Impactos,1
+40000648,Analista,Transferência de Tecnologia e Comunicação,Comunicação,8
+40000682,Técnico,Gestão da Informação,Tecnologia da Informação,3
+40000709,Pesquisador,Ciências Agrárias,Sistemas de Produção de Culturas Anuais,5
+40000710,Pesquisador,Ciências Agrárias,Fisiologia de Plantas Cultivadas,3
+40000724,Analista,Ciências Agrárias,Sanidade e Defesa Vegetal,6
+40000735,Pesquisador,Ciências Agrárias,Pedologia,3
+40000773,Analista,Ciências Agrárias,Sanidade e Defesa Animal,1
+40000775,Pesquisador,Ciência e Tecnologia de Alimentos,Ciência de Alimentos de Origem Animal,5
+40000786,Pesquisador,Ciências Agrárias,Sistemas de Dados Georreferenciados,2
+40000878,Técnico,"Suprimento, Manutenção e Serviços",Monitoramento Preditivo,4
+40000894,Pesquisador,Ciências Agrárias,Serviços Ambientais,2
+40000909,Analista,Gestão da Informação,Gestão da Informação Bibliográfica,2
+40000932,Analista,Ciências Agrárias,Sistema de Produção Vegetal,19
+40000959,Pesquisador,Ciências Agrárias,Sociobiodiversidade,1
+40000968,Pesquisador,Ciência e Tecnologia de Alimentos,Ciência de Alimentos,5
+40000980,Pesquisador,Engenharias,Sociologia e Automação e Mecanização,11
+40000981,Analista,Gestão da Informação,Gestão da Informação e da Programação Textos Técnico-Científicos,1
+40001001,Pesquisador,Ciências Agrárias,Sanidade Aquícola,2
+40001028,Analista,Ciências Biológicas,Insumos Biológicos,8
+40001042,Analista,Ciências Agrárias,Tecnologia de Sementes,2
+40001045,Pesquisador,Ciências Biológicas,Bioprospecção e Biotecnologia,8
+40001060,Analista,Laboratórios e Campos Experimentais,Microbiologia do Solo,1
+40001064,Analista,Ciência e Tecnologia de Alimentos,Ciência de Alimentos,7
+40001066,Analista,Gestão da Informação,Engenharia de Software,5
+40001071,Pesquisador,Ciências Agrárias,Sanidade e Defesa Vegetal,1
+40001074,Pesquisador,Ciências Agrárias,Sistemas de Produção Aquícola,3
+40001084,Pesquisador,Ciências Agrárias,Sistema de Produção Integrado,3
+40001098,Analista,Gestão de Pessoas,Administração de Pessoas,6
+40001144,Pesquisador,Ciências Agrárias,Controle Alternativo de Fitopatógenos,3
+40001150,Analista,Gestão da Informação,Gestão da Informação Edição Inglês/Português,1
+40001151,Analista,Transferência de Tecnologia e Comunicação,"Gestão de Parcerias, Portfólios e Negócios para a Inovação",33
+40001179,Pesquisador,Ciências Biológicas,Recursos Genéticos Animais,2
+40001181,Analista,Laboratórios e Campos Experimentais,Laboratório,5
+40001201,Analista,Gestão Estratégica,Gestão Integrada de Qualidade e Sustentabilidade,1
+40001224,Analista,Ciências Biológicas,Biologia Avançada e Química,3
+40001321,Pesquisador,Ciências Agrárias,Agentes Biológicos de Controle,3
+40001348,Analista,Transferência de Tecnologia e Comunicação,Inovação Social,12
+40001350,Pesquisador,Ciências Agrárias,Sistemas de Produção de Culturas Perenes,1
+40001354,Pesquisador,Ciências Agrárias,Sistema de Produção de Espécies Frutíferas,4
+40001355,Analista,Ciências Agrárias,Recursos Pesqueiros e Engenharia de Pesca,2
+40001358,Pesquisador,Ciências Agrárias,Ecologia,1
+40001388,Técnico,"Suprimento, Manutenção e Serviços",Ativos Patrimoniais e Imobiliários,2
+40001393,Técnico,"Suprimento, Manutenção e Serviços",Novas Tecnologias,2
+40001403,Pesquisador,Ciência e Tecnologia de Alimentos,Ciência de Alimentos de Pós-Colheita,2
+40001465,Analista,Ciências Agrárias,Recursos Genéticos Microbianos,1
+40001472,Pesquisador,Ciências Agrárias,Sanidade de Abelhas,1
+40001479,Pesquisador,Ciências Agrárias,Matologia,4
+40001484,Pesquisador,Ciências Agrárias,Nutrição de Ruminantes,4
+40001494,Pesquisador,Recursos Naturais,Economia Ambiental,1
+40001496,Analista,Ciências Agrárias,Sensoriamento Remoto,1
+40001550,Pesquisador,Ciências Agrárias,Nematologia Vegetal,4
+40001565,Pesquisador,Ciências Agrárias,Fitopatologia,10
+40001592,Pesquisador,Ciências Agrárias,Forragicultura,8
+40001607,Analista,Ciências Exatas e da Terra,Agricultura e Climatologia,3
+40001642,Analista,Ciências Exatas e da Terra,Geomática,2
+40001648,Analista,Transferência de Tecnologia e Comunicação,Análise de Dados,7
+40001672,Pesquisador,Ciências Biológicas,Insumos Biológicos,12
+40001690,Pesquisador,Ciências Biológicas,Biologia Avançada,14
+40001733,Pesquisador,Ciências Exatas e da Terra,Geotecnologia,1
+40001744,Pesquisador,Ciências Agrárias,Sistema de Produção Vegetal,20
+40001749,Pesquisador,Ciências Agrárias,Sistemas de Produção de Ruminantes,3
+40001752,Pesquisador,Ciências Agrárias,Sistema de Produção Agroecológico e Orgânico,7
+40001791,Pesquisador,Ciência e Tecnologia de Alimentos,Enologia,1
+40001814,Técnico,Gestão de Pessoas,Segurança e Saúde do Trabalho,10
+40001834,Pesquisador,Ciências Agrárias,Silvicultura,3
+40001860,Pesquisador,Ciências Agrárias,Uso Sustentável de Recursos Naturais,5
+40001887,Pesquisador,Ciências Agrárias,Tecnologia e Utilização de Produtos Florestais,1
+40001894,Pesquisador,Ciências Agrárias,Apicultura e Meliponicultura,4
+40001921,Pesquisador,Ciências Agrárias,Microbiologia e Bioquímica do Solo,4
+40001925,Técnico,Laboratório e Campos Experimentais,Manejo Florestal,6
+40002003,Pesquisador,Ciências Ambientais,Gestão Ambiental,1
+40002022,Pesquisador,Ciências Exatas e da Terra,Ciência de Dados,6
+40002027,Analista,Transferência de Tecnologia e Comunicação,Tecnologia de Alimentos,1
+40002042,Analista,Ciência e Tecnologia de Alimentos,Análise Sensorial,1
+40002098,Pesquisador,Engenharias,Recursos Florestais e Engenharia Florestal,1
+40002101,Pesquisador,Ciências Agrárias,Fertilidade e Química do Solo,4
+40002139,Analista,Ciências Biológicas,Biologia Avançada e Bioinformática,7
+40002144,Analista,Transferência de Tecnologia e Comunicação,Gestão de Projetos,3
+40002166,Analista,Ciências Biológicas,Biologia Avançada e Tecnologia da Informação,1
+40002180,Analista,Engenharias,Automação e Mecanização,3
+40002198,Analista,Ciências Exatas e da Terra,Ciência de Dados,12
+40002220,Analista,Gestão da Informação,Engenharia de Dados,3
+40002223,Analista,Orçamento e Finanças,Contabilidade,13
+40002260,Analista,Gestão da Informação,Gestão da Informação Arquivística,1
+40002271,Analista,"Suprimento, Manutenção e Serviços","Administrativo, Suprimento, Manutenção e Serviços",55
+40002278,Analista,Gestão da Informação,Engenharia de Infraestrutura e Tecnologia da Informação,16
+40002284,Analista,Gestão de Pessoas,Folha de Pagamento,2
+40002289,Analista,Gestão de Pessoas,Segurança e Saúde do Trabalho,3
+40002311,Analista,Direito e Auditoria,Assessoria Jurídica Advogado,1
+40002319,Analista,Gestão de Pessoas,Desenvolvimento Humano,6
+40002345,Analista,Ciências Exatas e da Terra,Sistemas de Informação,3
+40002348,Técnico,Transferência de Tecnologia e Comunicação,Técnico Audiovisual,1
+40002367,Analista,Gestão Estratégica,Inteligência e Planejamento Estratégico,1
+40002408,Pesquisador,Ciências Agrárias,Armazenamento de Grãos e Sementes,1
+40002449,Técnico,Orçamento e Finanças,Contabilidade,1
+40002490,Analista,Gestão Estratégica,Articulação Político-Institucional Internacional,1
+40002494,Pesquisador,Ciências Sociais Aplicadas,Ciências Sociais Aplicadas à Agropecuária,7
+40002503,Pesquisador,Ciências Agrárias,Sanidade e Defesa Animal,5
+40002541,Pesquisador,Ciências Agrárias,Ciência do Solo,17
+40002553,Analista,Transferência de Tecnologia e Comunicação,Transferência de Tecnologia,10
+40002684,Pesquisador,Ciências Biológicas,Bioprocessos,1
+40002688,Analista,Ciências Agrárias,Ciência do Solo,6
+40003250,Analista,Gestão Estratégica,Articulação Político-Institucional Nacional,1
+40003340,Analista,"Suprimento, Manutenção e Serviços",Infraestrutura Engenharia Elétrica,1
+40003476,Analista,Ciências Biológicas,Biologia Molecular e Genética Animal,2
+40003706,Pesquisador,Ciências Agrárias,Melhoramento Genético Vegetal,16
+40003735,Analista,Ciências Agrárias,Sistemas de Produção Animal,4
+40003965,Pesquisador,Gestão da Informação,Engenharia de Dados,1
+40003995,Assistente,Laboratório e Campos Experienciais,Laboratório,3
+40004353,Analista,Ciências Agrárias,Clínica Veterinária,3
+40004381,Técnico,Mecânica,Mecânica de Precisão,1
+40004441,Analista,"Suprimento, Manutenção e Serviços",Infraestrutura Arquitetura,1
+40004461,Analista,"Suprimento, Manutenção e Serviços",Infraestrutura Engenharia Civil,6
+40004569,Analista,Transferência de Tecnologia e Comunicação,Gestão de Instrumentos de Parcerias e Negócios,10
+40004576,Pesquisador,Fotônica,Instrumentação em Fotônica,1
+40005782,Pesquisador,Ciências Exatas e da Terra,Rastreabilidade e Certificação Digital,1
+40006388,Analista,"Suprimento, Manutenção e Serviços",Ativos Patrimoniais e Imobiliários,2
+40006431,Pesquisador,Transferência de Tecnologia e Comunicação,Inovação Social,2
+40007169,Analista,Direito e Auditoria,Auditoria Contábil,1
+40008640,Analista,"Suprimento, Manutenção e Serviços",Infraestrutura,1
+40009493,Analista,Ciência e Tecnologia de Alimentos,Tecnologia e Inovação Alimentar para Gastronomia,2

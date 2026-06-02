@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Convocações · Concurso EMBRAPA 2025</title>
 <meta name="description" content="Acompanhamento completo e em tempo real das convocações e contratações do Concurso Público EMBRAPA 2025.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Painel de Convocações · Concurso EMBRAPA 2025">
+<meta property="og:description" content="Acompanhe em tempo quase real as convocações, contratações, vagas por opção, ritmo e projeções do Concurso EMBRAPA 2025.">
+<meta property="og:image" content="https://alexandereis.github.io/embrapa-convocacoes/og.png">
+<meta property="og:url" content="https://alexandereis.github.io/embrapa-convocacoes/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Painel de Convocações · Concurso EMBRAPA 2025">
+<meta name="twitter:description" content="Convocações, contratações, vagas por opção e projeções do Concurso EMBRAPA 2025.">
+<meta name="twitter:image" content="https://alexandereis.github.io/embrapa-convocacoes/og.png">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -419,6 +428,22 @@ const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 function renderHero(){
   const g=DATA.general, totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
   document.getElementById('lastUpdate').textContent=(g.last_update||'').split(' - ')[0]||'—';
+  // selo de saude da coleta (cor do ponto + "coleta ha X")
+  try{
+    const ts=g.generated_ts, dot=document.querySelector('.dot');
+    if(ts&&dot){
+      const ageMin=(Date.now()/1000-ts)/60;
+      const cor=ageMin<90?C.green:(ageMin<360?C.wheat:C.coral);
+      let lbl;
+      if(ageMin<2)lbl='agora';else if(ageMin<60)lbl='há '+Math.round(ageMin)+' min';
+      else if(ageMin<2880)lbl='há '+Math.round(ageMin/60)+' h';else lbl='há '+Math.round(ageMin/1440)+' d';
+      dot.style.background=cor; dot.style.boxShadow='0 0 0 4px '+cor+'22';
+      let fr=document.getElementById('fresh');
+      if(!fr){fr=document.createElement('span');fr.id='fresh';const lt=document.querySelector('.live-txt');if(lt)lt.appendChild(fr);}
+      if(fr){fr.textContent=' · coleta '+lbl; fr.style.color='var(--text-dim)';}
+      const live=document.querySelector('.live'); if(live)live.title='Última coleta '+lbl+(ageMin>=360?' — possivelmente atrasada':'');
+    }
+  }catch(e){}
   document.getElementById('heroMeta').innerHTML=`
     <span class="pill">EDITAL 2025</span>
     <span>📋 <b>${fmt(totalVagas)}</b> vagas previstas</span>
@@ -749,9 +774,20 @@ function showLoadError(msg){
     </div>`);
 }
 
+// deep-link: #opcao=CODIGO abre a aba "Vagas por Opcao" ja filtrada
+function applyHash(){
+  const h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+  const op=h.get('opcao');
+  if(op){
+    const tab=document.querySelector('.tab[data-t="opcoes"]'); if(tab)tab.click();
+    const inp=document.getElementById('opSearch'); if(inp){inp.value=op; renderOpTable();}
+  }
+}
+window.addEventListener('hashchange',applyHash);
+
 // boot
 (async()=>{
-  try{ DATA=await loadData(); renderAll(); }
+  try{ DATA=await loadData(); renderAll(); applyHash(); }
   catch(e){ console.error(e); showLoadError(e.message); }
 })();
 </script>

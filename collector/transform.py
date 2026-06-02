@@ -40,6 +40,30 @@ def _cota(colocacao):
     return "Outros"
 
 
+def _scale_series(series, target):
+    """Escala os valores de uma serie {label,value} para que a soma seja
+    exatamente `target`, preservando o formato (proporcao entre os periodos).
+
+    Usado para reconciliar a curva historica (que vem de uma fonte datada
+    INCOMPLETA) com os totais OFICIAIS exatos: a distribuicao mensal/semanal e
+    uma estimativa do ritmo; o total final bate com o numero real.
+    """
+    s = sum(x["value"] for x in series)
+    if s <= 0 or not target:
+        return series
+    f = target / s
+    out, acc, running = [], 0.0, 0
+    for x in series:
+        acc += x["value"] * f
+        v = round(acc) - running
+        running += v
+        out.append({**x, "value": v})
+    drift = target - sum(x["value"] for x in out)
+    if out and drift:
+        out[-1]["value"] += drift
+    return out
+
+
 def _moving_avg(values, window):
     out = []
     for i in range(len(values)):
@@ -173,6 +197,12 @@ def build(raw):
     total_contratados = por_status.get("Contratado", 0)
     total_aceitou = por_status.get("Aceitou", 0)
     total_desist = sum(c["desistencias"] for c in cg.values())
+
+    # Reconcilia as series temporais com os totais OFICIAIS: a fonte datada
+    # (seed) e incompleta, entao escalamos a distribuicao para somar o total
+    # real. O formato (ritmo por periodo) e estimativa; o total final e exato.
+    weekly_series = _scale_series(weekly_series, total_convocados)
+    monthly_contr = _scale_series(monthly_contr, total_contratados)
     biz = _business_days(datetime.strptime(conv_dates[0], "%Y-%m-%d").date(),
                          date.today()) if conv_dates else 0
     media_mm10 = velocity[-1]["mm10"] if velocity else 0
@@ -183,6 +213,7 @@ def build(raw):
     general = {
         "last_update": raw.last_update or datetime.now().strftime("%d/%m/%Y - %H:%M:%S"),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_ts": int(datetime.now().timestamp()),
         "business_days_elapsed": ex.get("business_days_elapsed", biz),
         "total_convocados": total_convocados,
         "total_aceitou": total_aceitou,

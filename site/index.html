@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Convocações · Concurso EMBRAPA 2025</title>
 <meta name="description" content="Acompanhamento completo e em tempo real das convocações e contratações do Concurso Público EMBRAPA 2025.">
+<link rel="icon" href="https://www.embrapa.br/portal-embrapa-theme/images/favicon.ico">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%230f9e4a'/><text x='32' y='35' font-family='Arial,Helvetica,sans-serif' font-size='42' font-weight='800' fill='white' text-anchor='middle' dominant-baseline='central'>E</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -162,6 +164,13 @@ tbody tr:last-child td{border-bottom:none}
 .tcount{font-size:12.5px;color:var(--text-faint);margin-top:10px}
 .empty{padding:40px;text-align:center;color:var(--text-faint)}
 .pend{font-size:12px;font-style:italic;color:var(--text-faint);opacity:.85}
+.daygroup{margin-bottom:14px}
+.daygroup:last-child{margin-bottom:0}
+.dayhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-family:var(--display);font-weight:700;font-size:14.5px;padding:8px 2px;border-bottom:1px solid var(--border)}
+.daycount{font-family:var(--sans);font-weight:500;font-size:12px;color:var(--text-faint)}
+.mudtable{width:100%;border-collapse:collapse;font-size:13px}
+.mudtable td{padding:7px 8px;border-bottom:1px solid var(--border-soft,rgba(255,255,255,.05));white-space:nowrap}
+.mudtable td:nth-child(2){white-space:normal}
 
 /* ===== UNIT RANK ===== */
 .unit{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
@@ -229,6 +238,9 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
 <!-- ========== OVERVIEW ========== -->
 <section class="section active" id="s-overview">
   <div class="kpis" id="kpiGrid"></div>
+
+  <div class="sec-head"><h2>Mudanças recentes</h2><div class="ln"></div><div class="hint" id="mudHint"></div></div>
+  <div class="card" id="mudancas"></div>
 
   <div class="sec-head"><h2>Como está o preenchimento</h2><div class="ln"></div><div class="hint">vagas previstas no edital</div></div>
   <div class="grid g-2">
@@ -490,6 +502,35 @@ function renderCota(){
       <div class="bar" style="width:${c.total/max*100}%"><i style="width:${pcContr}%"></i></div></div>`;
   }).join('')+`<div class="legend"><span><i style="background:var(--green)"></i>Contratados</span><span><i style="background:var(--surface-3)"></i>Demais status</span></div>`;
 }
+function _diaBR(iso){const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`;}
+function _diaLabel(iso){
+  const hoje=new Date(), t=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate());
+  const[y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d);
+  const diff=Math.round((t-dt)/86400000);
+  if(diff===0)return 'Hoje'; if(diff===1)return 'Ontem';
+  const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  return `${d} de ${MES[m-1]}`;
+}
+function renderMudancas(){
+  const el=document.getElementById('mudancas'); if(!el)return;
+  const ch=DATA.mudancas||[]; const fonte=DATA.general.fonte_ultima_mudanca;
+  const hint=document.getElementById('mudHint');
+  if(hint)hint.textContent=fonte?('fonte mudou pela última vez em '+_diaBR(fonte)):'acompanhamento diário';
+  if(!ch.length){el.innerHTML='<div class="empty">Sem mudanças registradas ainda. A partir de agora, cada nova convocação ou contratação aparece aqui, dia a dia.</div>';return;}
+  const groups={}; ch.forEach(c=>{(groups[c.date]=groups[c.date]||[]).push(c);});
+  const dias=Object.keys(groups).sort().reverse();
+  el.innerHTML=dias.map(d=>{
+    const items=groups[d];
+    const contr=items.filter(i=>i.tipo==='Contratado').length, conv=items.filter(i=>i.tipo==='Convocado').length;
+    const rows=items.map(i=>{
+      const cor=i.tipo==='Contratado'?C.green:C.blue;
+      const loc=(!i.unidade)?`<span class="pend">aguardando localidade</span>`:i.unidade;
+      return `<tr><td><span class="st" style="--c:${cor}">${i.tipo}</span></td><td>${i.nome}</td>
+        <td>${i.cargo||''}</td><td class="mono">${i.opcao}</td><td>${loc}</td></tr>`;}).join('');
+    return `<div class="daygroup"><div class="dayhead">${_diaLabel(d)}<span class="daycount">${contr} contratado(s) · ${conv} convocado(s)</span></div>
+      <div class="tscroll"><table class="mudtable"><tbody>${rows}</tbody></table></div></div>`;
+  }).join('');
+}
 function renderCargoCards(){
   document.getElementById('cargoCards').innerHTML=DATA.por_cargo.map(c=>`
     <div class="cargo">
@@ -672,7 +713,7 @@ function renderPTable(){
 
 /* ============ INIT ============ */
 function renderAll(){
-  renderHero();renderKPIs();renderFunnel();renderStatus();renderOverallBars();renderCota();
+  renderHero();renderKPIs();renderMudancas();renderFunnel();renderStatus();renderOverallBars();renderCota();
   renderCargoCards();renderCargoCharts();renderTimeline();renderUnidades();renderProjecao();
   fillOpFilters();buildOpHead();renderOpTable();fillPStatus();renderPTable();
 }

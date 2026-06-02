@@ -192,6 +192,7 @@ def build(raw):
         "media_diaria_mm10": round(media_mm10),
         "avg_days_convocado_to_aceitou": ex.get("avg_days_convocado_to_aceitou", None),
         "vagas_edital": total_vagas,
+        "fonte_ultima_mudanca": ex.get("fonte_ultima_mudanca"),
     }
 
     return {
@@ -208,6 +209,7 @@ def build(raw):
         "velocity": velocity,
         "opcoes": opcoes,
         "por_cota": por_cota,
+        "mudancas": ex.get("changes", []),
         "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
                      "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",

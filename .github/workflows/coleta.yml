@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # historico completo (necessario p/ rebase no push)
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -43,12 +45,22 @@ jobs:
           # data.json + estado da timeline (a serie temporal propria cresce a
           # cada coleta). O seed e o catalogo sao versionados manualmente.
           git add site/data/data.json site/data/timeline_state.json 2>/dev/null || true
-          if [ -n "$(git status --porcelain site/data/data.json site/data/timeline_state.json)" ]; then
-            git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC')"
-            git push
-          else
+          if git diff --cached --quiet; then
             echo "Sem mudancas nos dados."
+            exit 0
           fi
+          git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC')"
+          # push resiliente: se o remoto avancou (push concorrente), rebaseia e
+          # tenta de novo. Em conflito de arquivo gerado, fica com a versao local.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "push ok"; exit 0
+            fi
+            echo "push rejeitado (tentativa $i) — rebaseando no remoto..."
+            git pull --rebase -X theirs origin main || git rebase --abort
+            sleep 3
+          done
+          echo "Falha ao empurrar apos varias tentativas."; exit 1
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5

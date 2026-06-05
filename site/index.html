@@ -54,6 +54,7 @@ a{color:inherit;text-decoration:none}
   background:linear-gradient(140deg,var(--green),var(--green-deep));color:#04210f;font-weight:800;
   box-shadow:0 0 0 1px rgba(62,224,111,.4),0 8px 22px -8px var(--green-glow)}
 .brand small{display:block;font-family:var(--sans);font-weight:500;font-size:11px;color:var(--text-dim);letter-spacing:.04em;margin-top:-2px}
+.logo-img{height:30px;width:auto;display:block}
 .live{margin-left:auto;display:flex;align-items:center;gap:14px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 var(--green-glow);animation:pulse 2s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(62,224,111,.5)}70%{box-shadow:0 0 0 9px rgba(62,224,111,0)}100%{box-shadow:0 0 0 0 rgba(62,224,111,0)}}
@@ -105,6 +106,10 @@ a{color:inherit;text-decoration:none}
 .kpi .val{font-family:var(--mono);font-weight:700;font-size:34px;letter-spacing:-.02em;margin-top:8px;line-height:1}
 .kpi .sub{font-size:12px;color:var(--text-faint);margin-top:7px}
 .kpi .sub b{color:var(--accent,var(--green))}
+.delta{display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:#07210f;background:var(--green);
+  padding:1px 7px;border-radius:99px;letter-spacing:.01em;vertical-align:middle}
+.copylink{background:none;border:none;cursor:pointer;font-size:12px;margin-right:6px;opacity:.5;padding:0;transition:.15s}
+.copylink:hover{opacity:1;transform:scale(1.18)}
 .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--surface-2);
   position:absolute;top:18px;right:18px;color:var(--accent,var(--green))}
 .ic svg{width:14px;height:14px}
@@ -222,7 +227,7 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
 </head>
 <body>
 <div class="topbar"><div class="wrap topbar-in">
-  <div class="brand"><div class="logo">E</div><div>EMBRAPA 2025<small>Painel de Convocações</small></div></div>
+  <div class="brand"><img class="logo-img" src="https://www.embrapa.br/portal-embrapa-theme/images/marca-embrapa-branco_216x91.png" alt="EMBRAPA"><div>Concurso 2025<small>Painel de Convocações</small></div></div>
   <div class="live">
     <span class="dot"></span>
     <span class="live-txt">Atualizado em <b id="lastUpdate">—</b></span>
@@ -320,6 +325,12 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
       <div class="desc">Convocados/dia e médias móveis (5 e 10 dias)</div>
       <div class="chart-box" style="height:260px"><canvas id="velocityChart"></canvas></div>
     </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>% preenchido por mês</h3>
+    <div class="desc">Avanço acumulado do preenchimento das vagas do edital</div>
+    <div class="chart-box" style="height:260px"><canvas id="fillChart"></canvas></div>
   </div>
 </section>
 
@@ -468,25 +479,41 @@ function renderHero(){
   if(meta.fonte_url){sl.href=meta.fonte_url;} if(meta.fonte_nome){sl.textContent=meta.fonte_nome;}
 }
 
+function countUp(el,target,dur){
+  dur=dur||900; const t0=performance.now();
+  function step(t){const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);
+    el.textContent=fmt(Math.round(target*e)); if(p<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);
+}
 function renderKPIs(){
   const g=DATA.general, totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
   const vagasAbertas=DATA.por_cargo.reduce((s,c)=>s+c.vagas_abertas,0);
   const pct=(g.total_contratados/totalVagas*100);
+  // variacao no dia mais recente do diario de mudancas
+  const ch=DATA.mudancas||[];
+  const latest=ch.reduce((m,c)=>(c.date>m?c.date:m),'');
+  const dd=latest?latest.slice(8,10)+'/'+latest.slice(5,7):'';
+  const dContr=ch.filter(c=>c.tipo==='Contratado'&&c.date===latest).length;
+  const dConv=ch.filter(c=>c.tipo==='Convocado'&&c.date===latest).length;
+  const badge=n=>n>0?`<span class="delta" title="novos em ${dd}">▲ +${n}</span> `:'';
   const k=[
-    {l:'Total convocados',v:g.total_convocados,s:`de ${fmt(totalVagas)} vagas previstas`,i:'users',c:C.blue},
-    {l:'Contratados',v:g.total_contratados,s:`<b>${pct.toFixed(1)}%</b> das vagas preenchidas`,i:'check',c:C.green},
-    {l:'Aguardando / aceitaram',v:g.total_aceitou,s:'em processo de contratação',i:'hand',c:C.cyan},
+    {l:'Total convocados',num:g.total_convocados,s:`de ${fmt(totalVagas)} vagas previstas`,i:'users',c:C.blue,d:dConv},
+    {l:'Contratados',num:g.total_contratados,s:`<b>${pct.toFixed(1)}%</b> das vagas preenchidas`,i:'check',c:C.green,d:dContr},
+    {l:'Aguardando / aceitaram',num:g.total_aceitou,s:'em processo de contratação',i:'hand',c:C.cyan},
     {l:'Taxa de desistência',v:g.pct_desistencias+'%',s:'dos convocados desistiram',i:'out',c:C.coral},
-    {l:'Vagas em aberto',v:vagasAbertas,s:'ainda a preencher',i:'target',c:C.wheat},
+    {l:'Vagas em aberto',num:vagasAbertas,s:'ainda a preencher',i:'target',c:C.wheat},
     {l:'Aceite médio',v:(g.avg_days_convocado_to_aceitou!=null?g.avg_days_convocado_to_aceitou+' d':'—'),s:'da convocação ao aceite',i:'clock',c:C.violet},
   ];
-  document.getElementById('kpiGrid').innerHTML=k.map(x=>`
+  document.getElementById('kpiGrid').innerHTML=k.map((x,idx)=>`
     <div class="kpi" style="--accent:${x.c}">
       <div class="ic">${ic(x.i)}</div>
       <div class="lab">${x.l}</div>
-      <div class="val">${typeof x.v==='number'?fmt(x.v):x.v}</div>
-      <div class="sub">${x.s}</div>
+      <div class="val" data-i="${idx}">${('num' in x)?'0':x.v}</div>
+      <div class="sub">${badge(x.d||0)}${x.s}</div>
     </div>`).join('');
+  document.querySelectorAll('#kpiGrid .val').forEach(el=>{
+    const x=k[+el.dataset.i]; if(x&&('num' in x))countUp(el,x.num);
+  });
 }
 
 function renderFunnel(){
@@ -615,6 +642,13 @@ function renderTimeline(){
     {label:'MM5',data:v.map(x=>x.mm5),borderColor:C.green,tension:.4,pointRadius:0,borderWidth:2.5},
     {label:'MM10',data:v.map(x=>x.mm10),borderColor:C.wheat,tension:.4,pointRadius:0,borderWidth:2,borderDash:[5,4]}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:11,padding:12,usePointStyle:true}}},scales:{x:gridX,y:gridY}}});
+  // % preenchido por mes (acumulado de contratados / vagas do edital)
+  const totV=DATA.por_cargo.reduce((s,c)=>s+c.total,0)||1;
+  let accF=0; const fillData=m.map(x=>{accF+=x.value;return +(accF/totV*100).toFixed(1);});
+  mk('fillChart',{type:'line',data:{labels:m.map(x=>x.label),datasets:[
+    {label:'% preenchido',data:fillData,borderColor:C.green,backgroundColor:'rgba(62,224,111,.12)',fill:true,tension:.35,pointRadius:3,borderWidth:2.5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+'% das vagas preenchidas'}}},
+      scales:{x:gridX,y:{...gridY,suggestedMin:0,suggestedMax:100}}}});
 }
 
 function renderUnidades(){
@@ -704,7 +738,7 @@ function renderOpTable(){
   document.getElementById('opBody').innerHTML = rows.length? rows.map(o=>{
     const cc=CARGO_COLOR[o.cargo]||C.gray;
     return `<tr>
-      <td class="mono">${o.opcao}</td>
+      <td class="mono"><button class="copylink" data-op="${o.opcao}" title="Copiar link desta opção">🔗</button>${o.opcao}</td>
       <td><span class="tag-cargo" style="background:${cc}1f;color:${cc}">${o.cargo}</span></td>
       <td title="${o.area}">${o.subarea||'—'}</td>
       <td class="num">${o.vagas}</td><td class="num">${o.convocados}</td>
@@ -798,6 +832,16 @@ function applyHash(){
 }
 window.addEventListener('hashchange',applyHash);
 
+// copiar link direto da opcao (usa o #opcao=)
+function fallbackCopy(text,cb){const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();try{document.execCommand('copy');cb&&cb();}catch(e){}t.remove();}
+function copyOpLink(op){
+  const url=location.origin+location.pathname+'#opcao='+op;
+  const done=()=>toast('Link da opção copiado');
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(done,()=>fallbackCopy(url,done));}
+  else fallbackCopy(url,done);
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.copylink');if(b){e.preventDefault();e.stopPropagation();copyOpLink(b.dataset.op);}});
+
 // aviso discreto (toast)
 function toast(msg){
   let el=document.getElementById('toast');
@@ -812,8 +856,7 @@ function _dataSig(o){
   return [g.total_convocados,g.total_contratados,g.total_aceitou,g.pct_desistencias,
           g.fonte_ultima_mudanca,(o.mudancas||[]).length].join('|');
 }
-// auto-atualizacao (sem F5): re-renderiza tudo SO se o dado mudou; senao so
-// atualiza o selo de saude ("coleta ha X").
+// auto-atualizacao (sem F5): re-renderiza tudo SO se o dado mudou; senao so o selo
 async function checkUpdates(){
   try{
     const fresh=await loadData();

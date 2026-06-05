@@ -110,6 +110,12 @@ a{color:inherit;text-decoration:none}
   padding:1px 7px;border-radius:99px;letter-spacing:.01em;vertical-align:middle}
 .copylink{background:none;border:none;cursor:pointer;font-size:12px;margin-right:6px;opacity:.5;padding:0;transition:.15s}
 .copylink:hover{opacity:1;transform:scale(1.18)}
+.mapabox{max-width:600px;margin:0 auto}
+.mapabox svg{width:100%;height:auto}
+.mapabox path{stroke:var(--bg-2);stroke-width:.7;transition:fill .25s}
+.mapabox path:hover{stroke:var(--green);stroke-width:1.2}
+.maplegend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-faint);margin-top:12px;flex-wrap:wrap}
+.legbar{width:120px;height:8px;border-radius:99px;background:linear-gradient(90deg,hsl(146,62%,18%),hsl(146,62%,52%))}
 .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--surface-2);
   position:absolute;top:18px;right:18px;color:var(--accent,var(--green))}
 .ic svg{width:14px;height:14px}
@@ -360,6 +366,9 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
 
 <!-- ========== UNIDADES ========== -->
 <section class="section" id="s-unidades">
+  <div class="sec-head"><h2>Convocações pelo Brasil</h2><div class="ln"></div><div class="hint" id="mapHint">por estado de lotação</div></div>
+  <div class="card"><div id="mapaBox" class="mapabox"></div><div class="maplegend" id="mapLegend"></div></div>
+
   <div class="sec-head"><h2>Ranking de unidades de lotação</h2><div class="ln"></div><div class="hint">por nº de convocados</div></div>
   <div class="grid g-2">
     <div class="card" id="unitRank"></div>
@@ -651,6 +660,37 @@ function renderTimeline(){
       scales:{x:gridX,y:{...gridY,suggestedMin:0,suggestedMax:100}}}});
 }
 
+let _mapaSVG=false;
+function _greenScale(t){return `hsl(146,62%,${13+t*40}%)`;}
+const _UFS=['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+async function renderMapa(){
+  const host=document.getElementById('mapaBox'); if(!host)return;
+  if(!_mapaSVG){
+    try{
+      const txt=await (await fetch('./br.svg',{cache:'force-cache'})).text();
+      host.innerHTML=txt; _mapaSVG=true;
+      const s=host.querySelector('svg');
+      if(s){s.setAttribute('viewBox','0 0 1000 912');s.removeAttribute('width');s.removeAttribute('height');s.style.width='100%';s.style.height='auto';s.style.display='block';}
+      ['points','label_points'].forEach(id=>{const g=host.querySelector('#'+id);if(g)g.style.display='none';});
+    }catch(e){ host.innerHTML='<div class="empty">Mapa indisponível.</div>'; return; }
+  }
+  const est=DATA.por_estado||[]; const by={}; let max=1;
+  est.forEach(e=>{by[e.uf]=e; if(e.total>max)max=e.total;});
+  _UFS.forEach(uf=>{
+    const path=host.querySelector('#BR'+uf); if(!path)return;
+    const e=by[uf]; const v=e?e.total:0;
+    path.style.fill = v? _greenScale(0.15+0.85*Math.sqrt(v/max)) : 'var(--surface-3)';
+    path.style.transition='fill .25s';
+    let tt=path.querySelector('title');
+    if(!tt){tt=document.createElementNS('http://www.w3.org/2000/svg','title');path.appendChild(tt);}
+    tt.textContent = e? `${e.estado}: ${e.total} convocado(s) · ${e.contratados} contratado(s)` : `${uf}: sem convocados`;
+  });
+  const semLoc=(DATA.pessoas||[]).filter(p=>!p.unidade||p.unidade==='Não informada'||p.unidade==='Nao informada').length;
+  const top=est[0], leg=document.getElementById('mapLegend');
+  if(leg)leg.innerHTML='<span class="legbar"></span><span>menos</span><span style="flex:1"></span><span>mais convocados</span>'
+    +(top?` &nbsp;·&nbsp; líder: <b>${top.estado}</b> (${top.total})`:'')
+    +(semLoc?` &nbsp;·&nbsp; ${fmt(semLoc)} aguardando localidade`:'');
+}
 function renderUnidades(){
   const u=DATA.por_unidade.filter(x=>x.unidade!=='Não informada'), max=u[0]?.total||1;
   document.getElementById('unitRank').innerHTML='<h3>Todas as unidades</h3><div class="desc">'+u.length+' unidades com convocados</div>'+
@@ -785,7 +825,7 @@ function renderPTable(){
 /* ============ INIT ============ */
 function renderAll(){
   renderHero();renderKPIs();renderMudancas();renderFunnel();renderStatus();renderOverallBars();renderCota();
-  renderCargoCards();renderCargoCharts();renderTimeline();renderUnidades();renderProjecao();
+  renderCargoCards();renderCargoCharts();renderTimeline();renderUnidades();renderMapa();renderProjecao();
   fillOpFilters();buildOpHead();renderOpTable();fillPStatus();renderPTable();
 }
 // tabs

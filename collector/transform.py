@@ -6,6 +6,7 @@ os poucos campos que exigem historico diario fino (complementados via extras).
 """
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
+import geo
 
 CARGOS = ["Pesquisador", "Analista", "Tecnico", "Tecnico", "Assistente"]
 
@@ -241,6 +242,7 @@ def build(raw):
         "velocity": velocity,
         "opcoes": opcoes,
         "por_cota": por_cota,
+        "por_estado": geo.por_estado(pessoas)[0],
         "mudancas": ex.get("changes", []),
         "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
                      "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),

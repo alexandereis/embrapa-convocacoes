@@ -203,8 +203,9 @@ def build(raw):
     # real. O formato (ritmo por periodo) e estimativa; o total final e exato.
     weekly_series = _scale_series(weekly_series, total_convocados)
     monthly_contr = _scale_series(monthly_contr, total_contratados)
-    biz = _business_days(datetime.strptime(conv_dates[0], "%Y-%m-%d").date(),
-                         date.today()) if conv_dates else 0
+    _alldates = conv_dates + contr_dates
+    biz = (_business_days(datetime.strptime(min(_alldates), "%Y-%m-%d").date(),
+                          date.today()) if _alldates else 0)
     media_mm10 = velocity[-1]["mm10"] if velocity else 0
     hoje = date.today().isoformat()
     convocados_hoje = daily.get(hoje, 0)
@@ -214,7 +215,7 @@ def build(raw):
         "last_update": raw.last_update or datetime.now().strftime("%d/%m/%Y - %H:%M:%S"),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "generated_ts": int(datetime.now().timestamp()),
-        "business_days_elapsed": ex.get("business_days_elapsed", biz),
+        "business_days_elapsed": biz,
         "total_convocados": total_convocados,
         "total_aceitou": total_aceitou,
         "total_contratados": total_contratados,

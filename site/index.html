@@ -207,6 +207,10 @@ tbody tr:last-child td{border-bottom:none}
 footer{border-top:1px solid var(--border);margin-top:30px;padding:26px 0 50px;color:var(--text-faint);font-size:12.5px}
 footer a{color:var(--green)}
 footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.dev{display:inline-flex;align-items:center;gap:8px;color:var(--text-dim)!important;font-weight:600;transition:.18s}
+.dev:hover{color:var(--text)!important}
+.dev b{color:var(--text)}
+.dev svg{width:18px;height:18px;fill:#0a66c2;flex:none}
 
 @media(max-width:860px){
   .g-2,.g-2b{grid-template-columns:1fr}
@@ -393,8 +397,12 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
 </section>
 
 <footer><div class="fl">
-  <div>Painel independente de acompanhamento · dados extraídos da planilha oficial de controle de convocações. Não é um canal oficial da EMBRAPA.</div>
-  <div>Fonte de dados: <a id="srcLink" href="#" target="_blank" rel="noopener">controle público de convocações</a></div>
+  <div>Painel independente de acompanhamento, baseado no painel público oficial de convocações da EMBRAPA. Não é um canal oficial da EMBRAPA.</div>
+  <div>Fonte de dados: <a id="srcLink" href="#" target="_blank" rel="noopener">painel oficial da EMBRAPA</a></div>
+  <a class="dev" href="https://www.linkedin.com/in/alexandereis/" target="_blank" rel="noopener" aria-label="LinkedIn de Alexander Reis">
+    <span>Desenvolvido por <b>Alexander Reis</b></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM6.81 20.45H3.86V9h2.95v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>
+  </a>
 </div></footer>
 </div>
 <script>
@@ -797,13 +805,22 @@ function toast(msg){
   el.textContent=msg; el.classList.add('show');
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3200);
 }
-// auto-atualizacao: confere o data.json e re-renderiza SO se mudou (sem F5)
+// assinatura do conteudo (ignora generated_ts) p/ saber se algo REAL mudou
+function _dataSig(o){
+  if(!o||!o.general)return '';
+  const g=o.general;
+  return [g.total_convocados,g.total_contratados,g.total_aceitou,g.pct_desistencias,
+          g.fonte_ultima_mudanca,(o.mudancas||[]).length].join('|');
+}
+// auto-atualizacao (sem F5): re-renderiza tudo SO se o dado mudou; senao so
+// atualiza o selo de saude ("coleta ha X").
 async function checkUpdates(){
   try{
     const fresh=await loadData();
-    const a=(DATA&&DATA.general&&DATA.general.generated_ts)||0;
-    const b=(fresh&&fresh.general&&fresh.general.generated_ts)||0;
-    if(b&&b!==a){ DATA=fresh; renderAll(); toast('Painel atualizado'); }
+    const changed=_dataSig(fresh)!==_dataSig(DATA);
+    DATA=fresh;
+    if(changed){ renderAll(); toast('Painel atualizado'); }
+    else { renderHero(); }
   }catch(e){}
 }
 setInterval(checkUpdates,180000); // a cada 3 min

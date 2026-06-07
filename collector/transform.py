@@ -8,7 +8,6 @@ from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 import geo
 
-CARGOS = ["Pesquisador", "Analista", "Tecnico", "Tecnico", "Assistente"]
 
 
 def _iso_week(dstr):
@@ -94,7 +93,6 @@ def build(raw):
         c["convocados"] += o["convocados"]
         c["desistencias"] += o["desistencias"]
     por_cargo = []
-    ordem = ["Pesquisador", "Analista", "Tecnico", "Tecnico", "Assistente"]
     for cargo, v in cg.items():
         total = v["total"] or 1
         por_cargo.append({

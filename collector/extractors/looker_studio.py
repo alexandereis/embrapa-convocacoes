@@ -7,14 +7,10 @@ agregado: o transform.py recalcula as metricas a partir das `pessoas`.
 Por que assim: torna o painel independente de fontes de terceiros. Basta o
 painel oficial continuar publico para a coleta funcionar.
 
-LIMITACAO ATUAL: este adaptador cobre apenas o componente da TABELA DE
-CONVOCADOS (campos _D_,_E_,_H_,_Q_,_J_,_K_). Esse componente NAO traz datas
-nem o resumo por opcao/cargo. Para o painel ficar 100% independente ainda
-faltam dois componentes do mesmo relatorio (ver COMPONENTS abaixo):
-  - resumo por opcao (vagas/contratados/convocados/desistencias por cargo);
-  - eventos datados de convocacao/contratacao (para as series temporais).
-Enquanto eles nao forem mapeados, use o adaptador `upstream_repo` para esses
-campos, ou rode em modo hibrido (ver config.py).
+Cobre a TABELA DE CONVOCADOS (campos _D_,_E_,_H_,_Q_,_J_,_K_). O codigo da
+opcao (_H_) e cruzado com o catalogo de edital (data/catalog_opcoes.csv) para
+obter cargo/area/subarea/vagas, e o resumo por opcao e RECALCULADO dos status.
+A tabela oficial nao traz datas; a linha do tempo e mantida pelo timeline.py.
 """
 import csv
 import json

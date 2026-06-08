@@ -65,6 +65,8 @@ a{color:inherit;text-decoration:none}
   display:inline-flex;align-items:center;gap:7px;transition:.18s}
 .btn:hover{background:var(--surface-3);border-color:var(--green)}
 .btn:disabled{opacity:.5;cursor:wait}
+.notifbtn{padding:8px 11px;font-size:15px;line-height:1}
+.notifbtn.on{border-color:var(--green);background:var(--green-glow)}
 .btn svg{width:14px;height:14px}
 .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 
@@ -237,6 +239,7 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
   <div class="live">
     <span class="dot"></span>
     <span class="live-txt">Atualizado em <b id="lastUpdate">—</b></span>
+    <button class="btn notifbtn" id="notifBtn" title="Receber aviso quando o painel atualizar">🔔</button>
     <button class="btn" id="refreshBtn" title="Buscar dados mais recentes">
       <svg id="refIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
       <span id="refTxt">Atualizar</span>
@@ -889,6 +892,36 @@ function toast(msg){
   el.textContent=msg; el.classList.add('show');
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3200);
 }
+// ---- notificacoes do navegador (enquanto a aba estiver aberta) ----
+function _updNotifBtn(){
+  const b=document.getElementById('notifBtn'); if(!b)return;
+  if(!('Notification' in window)){b.style.display='none';return;}
+  const on=Notification.permission==='granted';
+  b.classList.toggle('on',on);
+  b.title=on?'Notificações ativadas — você será avisado quando o painel atualizar'
+            :'Receber aviso quando o painel atualizar';
+}
+function setupNotif(){
+  const b=document.getElementById('notifBtn'); if(!b||!('Notification' in window)){if(b)b.style.display='none';return;}
+  b.onclick=()=>{
+    if(Notification.permission==='granted'){toast('Notificações já ativadas 🔔');return;}
+    if(Notification.permission==='denied'){toast('Permissão bloqueada no navegador');return;}
+    Notification.requestPermission().then(p=>{_updNotifBtn();
+      if(p==='granted'){toast('Notificações ativadas 🔔');
+        try{new Notification('Painel EMBRAPA 2025 🔔',{body:'Pronto! Você será avisado aqui quando houver novas convocações ou contratações.',icon:'favicon.ico'});}catch(e){}}
+    });
+  };
+  _updNotifBtn();
+}
+function notifyChange(d){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const ch=(d&&d.mudancas)||[]; const latest=ch.reduce((m,c)=>(c.date>m?c.date:m),'');
+  const nc=ch.filter(c=>c.tipo==='Convocado'&&c.date===latest).length;
+  const nk=ch.filter(c=>c.tipo==='Contratado'&&c.date===latest).length;
+  let body='O painel de convocações foi atualizado.';
+  if(nc||nk){const p=[];if(nc)p.push(nc+' nova(s) convocação(ões)');if(nk)p.push(nk+' nova(s) contratação(ões)');body=p.join(' · ');}
+  try{const n=new Notification('Painel EMBRAPA 2025 🔔',{body,icon:'favicon.ico'});n.onclick=()=>window.focus();}catch(e){}
+}
 // assinatura do conteudo (ignora generated_ts) p/ saber se algo REAL mudou
 function _dataSig(o){
   if(!o||!o.general)return '';
@@ -902,12 +935,13 @@ async function checkUpdates(){
     const fresh=await loadData();
     const changed=_dataSig(fresh)!==_dataSig(DATA);
     DATA=fresh;
-    if(changed){ renderAll(); toast('Painel atualizado'); }
+    if(changed){ renderAll(); toast('Painel atualizado'); notifyChange(fresh); }
     else { renderHero(); }
   }catch(e){}
 }
 setInterval(checkUpdates,180000); // a cada 3 min
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkUpdates(); });
+setupNotif();
 
 // boot
 (async()=>{

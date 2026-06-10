@@ -9,6 +9,7 @@ Uso:
     python collector/collect.py            # gera site/data/data.json
     python collector/collect.py --check    # so valida, nao grava
 """
+import copy
 import json
 import os
 import sys
@@ -20,6 +21,19 @@ from extractors import get_extractor  # noqa: E402
 import transform  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "site", "data", "data.json")
+
+# Campos que mudam a cada execucao mesmo sem novidade real (relogio interno).
+# Sao ignorados na comparacao para NAO regravar/commitar a toa.
+_VOLATEIS = ("generated_at", "generated_ts", "business_days_elapsed")
+
+
+def _assinatura(data):
+    """Conteudo significativo (sem os campos volateis) para comparar coletas."""
+    d = copy.deepcopy(data)
+    g = d.get("general", {})
+    for k in _VOLATEIS:
+        g.pop(k, None)
+    return json.dumps(d, sort_keys=True, ensure_ascii=False)
 
 
 def main():
@@ -46,11 +60,22 @@ def main():
         print("[coletor] --check OK (nada gravado)")
         return
 
+    # So regrava se houve MUDANCA REAL (assim o Actions nao commita a toa).
+    if os.path.exists(OUT):
+        try:
+            with open(OUT, encoding="utf-8") as f:
+                antigo = json.load(f)
+            if _assinatura(antigo) == _assinatura(data):
+                print("[coletor] sem mudanca real -> data.json mantido (sem commit)")
+                return
+        except Exception:  # noqa: BLE001
+            pass  # data.json ausente/ilegivel -> grava normalmente
+
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     kb = os.path.getsize(OUT) / 1024
-    print(f"[coletor] gravado: site/data/data.json ({kb:.1f} KB)")
+    print(f"[coletor] MUDANCA detectada -> gravado data.json ({kb:.1f} KB)")
 
 
 if __name__ == "__main__":

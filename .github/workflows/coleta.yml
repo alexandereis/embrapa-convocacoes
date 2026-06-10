@@ -1,10 +1,17 @@
 name: Coleta e Deploy
 
-# Roda a cada 15 min (acompanha o refresh do painel oficial) e permite disparo
-# manual. O coletor SO commita/atualiza o data.json quando os dados mudam.
+# Gatilhos:
+#  - repository_dispatch "fonte-mudou": disparado pelo Cloudflare Worker (que
+#    fica lendo o Looker a cada 1 min) SO quando a fonte muda de verdade. E o
+#    caminho rapido e limpo (o Actions so roda quando ha novidade real).
+#  - schedule: rede de seguranca a cada 6h, caso o Worker esteja fora do ar.
+#  - workflow_dispatch / push: disparo manual e em mudanca de codigo.
+# O coletor (collect.py) so regrava/commita o data.json quando ha mudanca real.
 on:
+  repository_dispatch:
+    types: [fonte-mudou]
   schedule:
-    - cron: "*/15 * * * *"   # a cada 15 minutos (UTC)
+    - cron: "7 */6 * * *"   # rede de seguranca: 4x ao dia (UTC)
   workflow_dispatch:
   push:
     branches: [ main ]

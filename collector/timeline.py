@@ -121,7 +121,7 @@ def update_and_build(pessoas):
     rcut = _cutoff(_RETURN_DAYS)
     recent = [c for c in changes if c.get("date", "") >= rcut]
     recent.sort(key=lambda c: c.get("ts", ""), reverse=True)
-    extras["changes"] = recent
+    extras["changes"] = recent[:80]   # Visao Geral: 80 mudancas mais recentes
     extras["changed_at"] = changed_at
     extras["fonte_ultima_mudanca"] = last_change
     return seed_conv + fwd_conv, seed_contr + fwd_contr, extras

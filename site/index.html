@@ -185,6 +185,7 @@ tbody tr:last-child td{border-bottom:none}
 .tcount{font-size:12.5px;color:var(--text-faint);margin-top:10px}
 .empty{padding:40px;text-align:center;color:var(--text-faint)}
 .pend{font-size:12px;font-style:italic;color:var(--text-faint);opacity:.85}
+.mut{color:var(--text-faint);font-size:12px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:200;
   background:var(--surface-2);border:1px solid var(--green);color:var(--text);
   padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;
@@ -413,6 +414,7 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
     <thead><tr>
       <th data-k="col">Colocação</th><th data-k="nome">Nome</th><th data-k="opcao">Opção</th>
       <th data-k="status">Status</th><th data-k="unidade">Unidade</th><th data-k="lotacao">Lotação</th>
+      <th data-k="alterado_em">Alterado em</th>
     </tr></thead>
     <tbody id="pBody"></tbody>
   </table></div></div>
@@ -505,8 +507,8 @@ function renderKPIs(){
   const ch=DATA.mudancas||[];
   const latest=ch.reduce((m,c)=>(c.date>m?c.date:m),'');
   const dd=latest?latest.slice(8,10)+'/'+latest.slice(5,7):'';
-  const dContr=ch.filter(c=>c.tipo==='Contratado'&&c.date===latest).length;
-  const dConv=ch.filter(c=>c.tipo==='Convocado'&&c.date===latest).length;
+  const dContr=ch.filter(c=>c.para==='Contratado'&&c.date===latest).length;
+  const dConv=ch.filter(c=>c.novo&&c.date===latest).length;
   const badge=n=>n>0?`<span class="delta" title="novos em ${dd}">▲ +${n}</span> `:'';
   const k=[
     {l:'Total convocados',num:g.total_convocados,s:`de ${fmt(totalVagas)} vagas previstas`,i:'users',c:C.blue,d:dConv},
@@ -591,19 +593,21 @@ function renderMudancas(){
   const el=document.getElementById('mudancas'); if(!el)return;
   const ch=DATA.mudancas||[]; const fonte=DATA.general.fonte_ultima_mudanca;
   const hint=document.getElementById('mudHint');
-  if(hint)hint.textContent=fonte?('fonte mudou pela última vez em '+_diaBR(fonte)):'acompanhamento diário';
-  if(!ch.length){el.innerHTML='<div class="empty">Sem mudanças registradas ainda. A partir de agora, cada nova convocação ou contratação aparece aqui, dia a dia.</div>';return;}
+  if(hint)hint.textContent=fonte?('fonte mudou pela última vez em '+_diaBR(fonte)):'qualquer mudança de situação, com data e hora';
+  if(!ch.length){el.innerHTML='<div class="empty">Sem mudanças registradas ainda. A partir de agora, <b>qualquer mudança de situação</b> (convocação, aceite, contratação, desistência…) aparece aqui com data e hora.</div>';return;}
   const groups={}; ch.forEach(c=>{(groups[c.date]=groups[c.date]||[]).push(c);});
   const dias=Object.keys(groups).sort().reverse();
   el.innerHTML=dias.map(d=>{
     const items=groups[d];
-    const contr=items.filter(i=>i.tipo==='Contratado').length, conv=items.filter(i=>i.tipo==='Convocado').length;
     const rows=items.map(i=>{
-      const cor=i.tipo==='Contratado'?C.green:C.blue;
+      const cor=STATUS_COLOR[i.para]||C.gray;
       const loc=(!i.unidade)?`<span class="pend">aguardando localidade</span>`:i.unidade;
-      return `<tr><td><span class="st" style="--c:${cor}">${i.tipo}</span></td><td>${i.nome}</td>
-        <td>${i.cargo||''}</td><td class="mono">${i.opcao}</td><td>${loc}</td></tr>`;}).join('');
-    return `<div class="daygroup"><div class="dayhead">${_diaLabel(d)}<span class="daycount">${contr} contratado(s) · ${conv} convocado(s)</span></div>
+      const hora=i.ts?i.ts.slice(11,16):'';
+      const trans=i.de?`<span class="mut">era ${i.de}</span>`:`<span class="mut">novo</span>`;
+      return `<tr><td><span class="st" style="--c:${cor}">${i.para}</span></td><td>${i.nome}</td>
+        <td>${trans}</td><td>${i.cargo||''}</td><td class="mono">${i.opcao}</td><td>${loc}</td>
+        <td class="mono mut">${hora}</td></tr>`;}).join('');
+    return `<div class="daygroup"><div class="dayhead">${_diaLabel(d)}<span class="daycount">${items.length} mudança(s)</span></div>
       <div class="tscroll"><table class="mudtable"><tbody>${rows}</tbody></table></div></div>`;
   }).join('');
 }
@@ -817,10 +821,11 @@ function renderPTable(){
     const semLoc=!p.unidade||p.unidade==='Não informada'||p.unidade==='Nao informada';
     const und=semLoc?`<span class="pend">aguardando escolha de localidade</span>`:p.unidade;
     const lot=semLoc?'':(p.lotacao||'—');
+    const alt=p.alterado_em?`<span title="quando detectamos a última mudança">${p.alterado_em.slice(8,10)}/${p.alterado_em.slice(5,7)} ${p.alterado_em.slice(11,16)}</span>`:'—';
     return `<tr><td class="mono">${p.col}</td><td>${p.nome}</td><td class="mono">${p.opcao}</td>
       <td><span class="st" style="--c:${c}">${p.status}</span></td>
-      <td>${und}</td><td>${lot}</td></tr>`;}).join('')
-    : '<tr><td colspan="6" class="empty">Ninguém encontrado.</td></tr>';
+      <td>${und}</td><td>${lot}</td><td class="mono mut">${alt}</td></tr>`;}).join('')
+    : '<tr><td colspan="7" class="empty">Ninguém encontrado.</td></tr>';
   document.getElementById('pCount').textContent=fmt(DATA.pessoas.length)+' convocados no total';
   document.getElementById('pTotals').textContent=`${fmt(total)} resultados · exibindo ${fmt(Math.min(total,lim))}`;
 }
@@ -916,10 +921,13 @@ function setupNotif(){
 function notifyChange(d){
   if(!('Notification' in window)||Notification.permission!=='granted')return;
   const ch=(d&&d.mudancas)||[]; const latest=ch.reduce((m,c)=>(c.date>m?c.date:m),'');
-  const nc=ch.filter(c=>c.tipo==='Convocado'&&c.date===latest).length;
-  const nk=ch.filter(c=>c.tipo==='Contratado'&&c.date===latest).length;
+  const hoje=ch.filter(c=>c.date===latest);
+  const nc=hoje.filter(c=>c.novo).length;
+  const nk=hoje.filter(c=>c.para==='Contratado').length;
+  const outras=hoje.filter(c=>!c.novo&&c.para!=='Contratado').length;
   let body='O painel de convocações foi atualizado.';
-  if(nc||nk){const p=[];if(nc)p.push(nc+' nova(s) convocação(ões)');if(nk)p.push(nk+' nova(s) contratação(ões)');body=p.join(' · ');}
+  const p=[]; if(nc)p.push(nc+' nova(s) convocação(ões)'); if(nk)p.push(nk+' nova(s) contratação(ões)'); if(outras)p.push(outras+' outra(s) mudança(s)');
+  if(p.length)body=p.join(' · ');
   try{const n=new Notification('Painel EMBRAPA 2025 🔔',{body,icon:'favicon.ico'});n.onclick=()=>window.focus();}catch(e){}
 }
 // assinatura do conteudo (ignora generated_ts) p/ saber se algo REAL mudou

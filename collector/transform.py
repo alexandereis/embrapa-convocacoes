@@ -210,6 +210,7 @@ def build(raw):
     convocados_hoje = daily.get(hoje, 0)
 
     ex = raw.extras or {}
+    changed_at = ex.get("changed_at") or {}
     general = {
         "last_update": raw.last_update or datetime.now().strftime("%d/%m/%Y - %H:%M:%S"),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -245,7 +246,10 @@ def build(raw):
         "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
                      "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",
-                     "lotacao": p["lotacao"]} for p in pessoas],
+                     "lotacao": p["lotacao"],
+                     "alterado_em": changed_at.get(
+                         "{}|{}|{}".format(p["opcao"], p["colocacao"], p["nome"]), "")}
+                    for p in pessoas],
         "aceites_pendentes": aceites,
         "remaining_days": [{"cargo": "ALL",
                             "vagas_restantes": sum(c["vagas_abertas"] for c in por_cargo)}],

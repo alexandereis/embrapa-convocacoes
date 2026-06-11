@@ -1,17 +1,13 @@
 """Linha do tempo PROPRIA do coletor (sem datas vindas do oficial).
 
-Estrategia robusta (sem efeito-cascata):
   - SEED (uma vez): curva historica importada dos dados publicos existentes ->
-    site/data/timeline_seed.json (versionado). Tambem traz 'extras' (ex.: tempo
-    medio convocacao->aceite) que o oficial nao expoe.
-  - DIFF DE CONJUNTO (a cada coleta): guardamos o conjunto de pessoas e status
-    em site/data/timeline_state.json. So quem e novo ou mudou de status gera um
-    evento datado de HOJE. Na 1a coleta nao geramos nada (curva = seed) -> sem
-    pico falso em "hoje".
+    site/data/timeline_seed.json (versionado). Tambem traz 'extras'.
+  - DIFF DE CONJUNTO (a cada coleta): guardamos {pessoa: status} em
+    site/data/timeline_state.json. QUALQUER mudanca de status (entrou na tabela
+    ou mudou de situacao) vira um evento com DATA E HORA. Tambem guardamos, por
+    pessoa, o instante da ultima alteracao (para a coluna "Alterado em").
 
-Tambem mantemos um DIARIO DE MUDANCAS (changes) com nomes, alimentado pelos
-diffs, e a data da ultima mudanca da fonte (para o indicador de saude).
-
+Na 1a coleta nao geramos nada (baseline) -> sem pico falso.
 Defensivo: falha aqui NAO derruba a coleta.
 """
 import json
@@ -24,12 +20,8 @@ STATE_PATH = os.path.join(_SITE_DATA, "timeline_state.json")
 
 _BR = timezone(timedelta(hours=-3))   # Brasilia = UTC-3 (sem horario de verao)
 _CONTRATADO = "Contratado"
-_KEEP_DAYS = 60        # quantos dias de diario manter no estado
-_RETURN_DAYS = 21      # quantos dias de diario expor para o site
-
-
-def hoje_br():
-    return datetime.now(_BR).date().isoformat()
+_KEEP_DAYS = 90        # quantos dias de diario manter no estado
+_RETURN_DAYS = 30      # quantos dias de diario expor para o site
 
 
 def _event(day, cargo):
@@ -60,7 +52,9 @@ def _cutoff(days):
 
 
 def update_and_build(pessoas):
-    day = hoje_br()
+    now = datetime.now(_BR)
+    day = now.date().isoformat()
+    ts = now.strftime("%Y-%m-%d %H:%M")
 
     seed = _read(SEED_PATH, {}) or {}
     seed_conv = list(seed.get("convocacoes", []))
@@ -73,6 +67,14 @@ def update_and_build(pessoas):
     fwd_conv = list(ev.get("convocacoes", []))
     fwd_contr = list(ev.get("contratacoes", []))
     changes = list(state.get("changes", []))
+    changed_at = dict(state.get("changed_at", {}))
+    # migra entradas do schema antigo (tipo/date) para o novo (para/de/ts)
+    for c in changes:
+        if "para" not in c:
+            c["para"] = c.get("tipo", "")
+            c.setdefault("de", "")
+            c.setdefault("ts", c.get("date", ""))
+            c.setdefault("novo", c.get("tipo") == "Convocado")
     last_change = state.get("last_change")
 
     first_run = not last_people
@@ -87,38 +89,39 @@ def update_and_build(pessoas):
             cargo = p.get("cargo", "")
             prev = last_people.get(k)
             is_new = prev is None
-            became = (prev != _CONTRATADO and status == _CONTRATADO)
+            mudou = is_new or (prev != status)
+            # eventos para os GRAFICOS (convocacao quando entra; contratacao
+            # quando vira Contratado)
             if is_new:
                 fwd_conv.append(_event(day, cargo))
-                changes.append({"date": day, "tipo": "Convocado", "nome": p.get("nome", ""),
-                                "cargo": cargo, "opcao": p.get("opcao", ""),
-                                "unidade": p.get("unidade", "")})
-            if became or (is_new and status == _CONTRATADO):
+            if prev != _CONTRATADO and status == _CONTRATADO:
                 fwd_contr.append(_event(day, cargo))
-                changes.append({"date": day, "tipo": "Contratado", "nome": p.get("nome", ""),
-                                "cargo": cargo, "opcao": p.get("opcao", ""),
-                                "unidade": p.get("unidade", "")})
+            # diario: QUALQUER mudanca de status, com data+hora e a transicao
+            if mudou:
+                changes.append({"ts": ts, "date": day, "nome": p.get("nome", ""),
+                                "opcao": p.get("opcao", ""), "cargo": cargo,
+                                "unidade": p.get("unidade", ""),
+                                "de": prev or "", "para": status, "novo": is_new})
+                changed_at[k] = ts
         if current != last_people:
             last_change = day
 
-    # poda o diario para os ultimos _KEEP_DAYS dias
     cut = _cutoff(_KEEP_DAYS)
     changes = [c for c in changes if c.get("date", "") >= cut]
 
     new_state = {"people": current,
                  "events": {"convocacoes": fwd_conv, "contratacoes": fwd_contr},
-                 "changes": changes,
+                 "changes": changes, "changed_at": changed_at,
                  "last_change": last_change}
     try:
         _write(STATE_PATH, new_state)
     except Exception:
         pass
 
-    # expoe ao site so os ultimos _RETURN_DAYS dias, mais recentes primeiro
     rcut = _cutoff(_RETURN_DAYS)
     recent = [c for c in changes if c.get("date", "") >= rcut]
-    recent.sort(key=lambda c: c.get("date", ""), reverse=True)
+    recent.sort(key=lambda c: c.get("ts", ""), reverse=True)
     extras["changes"] = recent
+    extras["changed_at"] = changed_at
     extras["fonte_ultima_mudanca"] = last_change
-
     return seed_conv + fwd_conv, seed_contr + fwd_contr, extras

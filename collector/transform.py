@@ -208,10 +208,17 @@ def build(raw):
                           date.today()) if _alldates else 0)
     media_mm10 = velocity[-1]["mm10"] if velocity else 0
     hoje = date.today().isoformat()
-    convocados_hoje = daily.get(hoje, 0)
 
     ex = raw.extras or {}
     changed_at = ex.get("changed_at") or {}
+    # "Convocados hoje" sai do MESMO diario do painel "Mudancas recentes":
+    # conta as novas convocacoes (novo=True) datadas de hoje. O backfill
+    # alimenta o diario (e nao a serie de eventos), entao contar pelo diario
+    # fica consistente tanto apos o backfill quanto nas coletas seguintes.
+    _mud = ex.get("changes") or []
+    convocados_hoje = sum(1 for c in _mud if c.get("date") == hoje and c.get("novo"))
+    if not _mud:
+        convocados_hoje = daily.get(hoje, 0)
     general = {
         "last_update": raw.last_update or datetime.now().strftime("%d/%m/%Y - %H:%M:%S"),
         "generated_at": datetime.now().isoformat(timespec="seconds"),

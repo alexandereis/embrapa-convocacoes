@@ -7,6 +7,7 @@ os poucos campos que exigem historico diario fino (complementados via extras).
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 import geo
+import timeline
 
 
 
@@ -248,7 +249,7 @@ def build(raw):
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",
                      "lotacao": p["lotacao"],
                      "alterado_em": changed_at.get(
-                         "{}|{}|{}".format(p["opcao"], p["colocacao"], p["nome"]), "")}
+                         timeline.norm_key(p["opcao"], p["colocacao"], p["nome"]), "")}
                     for p in pessoas],
         "aceites_pendentes": aceites,
         "remaining_days": [{"cargo": "ALL",

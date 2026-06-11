@@ -1,17 +1,18 @@
 """Linha do tempo PROPRIA do coletor (sem datas vindas do oficial).
 
-  - SEED (uma vez): curva historica importada dos dados publicos existentes ->
-    site/data/timeline_seed.json (versionado). Tambem traz 'extras'.
+  - SEED (uma vez): curva historica -> site/data/timeline_seed.json.
   - DIFF DE CONJUNTO (a cada coleta): guardamos {pessoa: status} em
-    site/data/timeline_state.json. QUALQUER mudanca de status (entrou na tabela
-    ou mudou de situacao) vira um evento com DATA E HORA. Tambem guardamos, por
-    pessoa, o instante da ultima alteracao (para a coluna "Alterado em").
+    site/data/timeline_state.json. QUALQUER mudanca de status vira um evento com
+    DATA E HORA. Tambem guardamos, por pessoa, o instante da ultima alteracao.
 
-Na 1a coleta nao geramos nada (baseline) -> sem pico falso.
-Defensivo: falha aqui NAO derruba a coleta.
+A chave da pessoa e NORMALIZADA (sem acento, maiusculas) para casar entre
+fontes diferentes (a oficial vem sem acento; o backfill, com).
+
+Na 1a coleta nao geramos nada (baseline). Defensivo: falha aqui NAO derruba a coleta.
 """
 import json
 import os
+import unicodedata
 from datetime import datetime, timedelta, timezone
 
 _SITE_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), "site", "data")
@@ -22,6 +23,15 @@ _BR = timezone(timedelta(hours=-3))   # Brasilia = UTC-3 (sem horario de verao)
 _CONTRATADO = "Contratado"
 _KEEP_DAYS = 90        # quantos dias de diario manter no estado
 _RETURN_DAYS = 30      # quantos dias de diario expor para o site
+
+
+def _norm(s):
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
+    return " ".join(s.upper().split())
+
+
+def norm_key(opcao, colocacao, nome):
+    return "{}|{}|{}".format(_norm(opcao), _norm(colocacao), _norm(nome))
 
 
 def _event(day, cargo):
@@ -43,8 +53,7 @@ def _write(path, obj):
 
 
 def _key(p):
-    return "{}|{}|{}".format(p.get("opcao", ""), p.get("colocacao", ""),
-                             p.get("nome", ""))
+    return norm_key(p.get("opcao", ""), p.get("colocacao", ""), p.get("nome", ""))
 
 
 def _cutoff(days):
@@ -68,13 +77,6 @@ def update_and_build(pessoas):
     fwd_contr = list(ev.get("contratacoes", []))
     changes = list(state.get("changes", []))
     changed_at = dict(state.get("changed_at", {}))
-    # migra entradas do schema antigo (tipo/date) para o novo (para/de/ts)
-    for c in changes:
-        if "para" not in c:
-            c["para"] = c.get("tipo", "")
-            c.setdefault("de", "")
-            c.setdefault("ts", c.get("date", ""))
-            c.setdefault("novo", c.get("tipo") == "Convocado")
     last_change = state.get("last_change")
 
     first_run = not last_people
@@ -90,13 +92,10 @@ def update_and_build(pessoas):
             prev = last_people.get(k)
             is_new = prev is None
             mudou = is_new or (prev != status)
-            # eventos para os GRAFICOS (convocacao quando entra; contratacao
-            # quando vira Contratado)
             if is_new:
                 fwd_conv.append(_event(day, cargo))
             if prev != _CONTRATADO and status == _CONTRATADO:
                 fwd_contr.append(_event(day, cargo))
-            # diario: QUALQUER mudanca de status, com data+hora e a transicao
             if mudou:
                 changes.append({"ts": ts, "date": day, "nome": p.get("nome", ""),
                                 "opcao": p.get("opcao", ""), "cargo": cargo,
@@ -121,7 +120,7 @@ def update_and_build(pessoas):
     rcut = _cutoff(_RETURN_DAYS)
     recent = [c for c in changes if c.get("date", "") >= rcut]
     recent.sort(key=lambda c: c.get("ts", ""), reverse=True)
-    extras["changes"] = recent[:80]   # Visao Geral: 80 mudancas mais recentes
+    extras["changes"] = recent[:80]
     extras["changed_at"] = changed_at
     extras["fonte_ultima_mudanca"] = last_change
     return seed_conv + fwd_conv, seed_contr + fwd_contr, extras

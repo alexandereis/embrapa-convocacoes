@@ -56,6 +56,32 @@ def _key(p):
     return norm_key(p.get("opcao", ""), p.get("colocacao", ""), p.get("nome", ""))
 
 
+# Ordem de "avanco" do status (maior = mais definitivo). Desempata quando a
+# fonte traz a MESMA pessoa (mesma chave) em duas linhas com status diferentes
+# (ex.: remanejamento -> Reconvocado numa unidade e Desistente noutra). Sem
+# isso, a ordem das linhas faz o status "alternar" entre coletas e gera eventos
+# fantasmas datados de hoje.
+_PRIORIDADE = {"Contratado": 6, "Aceitou": 5, "Reconvocado": 4,
+               "Convocado": 3, "Convocado subjudice": 2, "Em contratacao": 1,
+               "Desistente": 0}
+
+
+def _rank(status):
+    return _PRIORIDADE.get(status, 1)
+
+
+def _dedupe(pessoas):
+    """Uma linha por chave; em conflito mantem o status mais avancado.
+    Deterministico: independe da ordem das linhas da fonte."""
+    best = {}
+    for p in pessoas:
+        k = _key(p)
+        atual = best.get(k)
+        if atual is None or _rank(p.get("status", "")) > _rank(atual.get("status", "")):
+            best[k] = p
+    return list(best.values())
+
+
 def _cutoff(days):
     return (datetime.now(_BR).date() - timedelta(days=days)).isoformat()
 
@@ -64,6 +90,10 @@ def update_and_build(pessoas):
     now = datetime.now(_BR)
     day = now.date().isoformat()
     ts = now.strftime("%Y-%m-%d %H:%M")
+
+    # Colapsa linhas duplicadas (mesma pessoa em 2 lotacoes) ANTES de tudo, de
+    # forma deterministica -> sem flip-flop fantasma entre coletas.
+    pessoas = _dedupe(pessoas)
 
     seed = _read(SEED_PATH, {}) or {}
     seed_conv = list(seed.get("convocacoes", []))

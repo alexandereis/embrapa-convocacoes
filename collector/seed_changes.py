@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """Backfill (uma vez) do diario de mudancas com DATA E HORA reais.
 
-Importa o historico completo de diffs ja mantido pela fonte publica
-(data/complete_diff_history.json), reconstrói as transicoes de status
-cronologicamente e grava no site/data/timeline_state.json:
-  - changes   : ultimos N dias de eventos (ts, de, para, novo, ...);
+Importa o historico publico de diffs (mantido pela comunidade) e grava em
+site/data/timeline_state.json:
+  - changes   : eventos recentes (ts, de, para, novo, ...);
   - changed_at: por pessoa, o instante da ULTIMA alteracao (coluna "Alterado em").
 
-A chave da pessoa e NORMALIZADA (sem acento) para casar com a fonte oficial,
-que vem sem acento. O baseline 'people' e ZERADO de proposito: a proxima coleta
-re-cria o baseline limpo (sem sobrescrever as horas reais do backfill).
+SALVAGUARDA ANTI-FANTASMA: so importa eventos de pessoas que EXISTEM na fonte
+oficial AGORA (intersecao por chave normalizada com site/data/data.json). Assim
+nenhum registro do historico do concorrente que nao esteja no oficial entra no
+painel (foi o que gerou o "fantasma" antes).
 
-A partir daqui o coletor (timeline.py) continua sozinho, so com os NOVOS.
-Necessario apenas UMA vez.
+A chave da pessoa e NORMALIZADA (sem acento, maiusculas) para casar com a fonte
+oficial, que vem sem acento. O baseline 'people' e ZERADO de proposito: a
+proxima coleta re-cria o baseline limpo (sem sobrescrever as horas do backfill).
 
-Uso (na pasta do projeto):
-    python collector/seed_changes.py
+ORDEM DE USO (na pasta do projeto), necessario apenas UMA vez:
+    python collector/collect.py        # gera data.json oficial + baseline limpo
+    python collector/seed_changes.py   # injeta as datas reais (so quem e oficial)
+    python collector/collect.py        # regenera data.json com as datas
 """
 import json
 import os
@@ -28,8 +31,9 @@ from timeline import norm_key  # noqa: E402
 
 SRC = ("https://raw.githubusercontent.com/arjonilla87/embrapa-site/"
        "main/data/complete_diff_history.json")
-STATE = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                     "site", "data", "timeline_state.json")
+_BASE = os.path.dirname(os.path.dirname(__file__))
+DATA = os.path.join(_BASE, "site", "data", "data.json")
+STATE = os.path.join(_BASE, "site", "data", "timeline_state.json")
 KEEP_DAYS = 90
 
 
@@ -42,7 +46,24 @@ def _parse_dt(s):
     return datetime.strptime(s.strip(), "%d/%m/%Y - %H:%M:%S")
 
 
+def _chaves_oficiais():
+    """Chaves normalizadas das pessoas que existem HOJE na fonte oficial."""
+    with open(DATA, encoding="utf-8") as f:
+        data = json.load(f)
+    keys = set()
+    for p in data.get("pessoas", []):
+        keys.add(norm_key(p.get("opcao", ""), p.get("col", ""), p.get("nome", "")))
+    return keys
+
+
 def main():
+    if not os.path.exists(DATA):
+        print("ERRO: site/data/data.json nao existe. Rode collect.py primeiro.")
+        sys.exit(1)
+
+    oficiais = _chaves_oficiais()
+    print(f"pessoas na fonte oficial: {len(oficiais)}")
+
     hist = json.loads(_get(SRC))
     eventos = []
     for r in hist:
@@ -56,9 +77,14 @@ def main():
     changes = []
     changed_at = {}
     corte = datetime.now() - timedelta(days=KEEP_DAYS)
+    descartados = 0
 
     for dt, r in eventos:
         key = norm_key(r.get("OPÇÃO", ""), r.get("COLOCAÇÃO", ""), r.get("NOME", ""))
+        # SALVAGUARDA: ignora quem nao esta na fonte oficial (anti-fantasma).
+        if key not in oficiais:
+            descartados += 1
+            continue
         status = (r.get("STATUS") or "").strip()
         novo = (r.get("EVENTO") or "").strip().upper() == "NOVO"
         prev = running.get(key)
@@ -93,9 +119,10 @@ def main():
         json.dump(state, f, ensure_ascii=False, separators=(",", ":"))
 
     print(f"backfill gravado: {STATE}")
-    print(f"  eventos no historico: {len(eventos)}")
-    print(f"  changes (ultimos {KEEP_DAYS}d): {len(changes)}")
-    print(f"  pessoas com 'alterado em': {len(changed_at)}")
+    print(f"  eventos no historico:                 {len(eventos)}")
+    print(f"  descartados (fora da fonte oficial):  {descartados}")
+    print(f"  changes (ultimos {KEEP_DAYS}d):              {len(changes)}")
+    print(f"  pessoas com 'alterado em':            {len(changed_at)}")
 
 
 if __name__ == "__main__":

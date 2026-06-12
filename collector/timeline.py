@@ -61,13 +61,21 @@ def _key(p):
 # (ex.: remanejamento -> Reconvocado numa unidade e Desistente noutra). Sem
 # isso, a ordem das linhas faz o status "alternar" entre coletas e gera eventos
 # fantasmas datados de hoje.
-_PRIORIDADE = {"Contratado": 6, "Aceitou": 5, "Reconvocado": 4,
-               "Convocado": 3, "Convocado subjudice": 2, "Em contratacao": 1,
-               "Desistente": 0}
-
-
 def _rank(status):
-    return _PRIORIDADE.get(status, 1)
+    """Rank de 'avanco' do status (maior = mais definitivo). Por palavra-chave
+    para tolerar variantes ('Aceitou sub judice', 'Convocado subjudice', ...)."""
+    s = (status or "").lower()
+    if "contratado" in s:
+        return 6
+    if "aceitou" in s:               # inclui 'Aceitou sub judice'
+        return 5
+    if "reconvocad" in s:
+        return 4
+    if "convocado" in s:             # inclui 'Convocado subjudice'
+        return 3
+    if "desisten" in s or "desclassific" in s or "manifest" in s:
+        return 0
+    return 1
 
 
 def _dedupe(pessoas):

@@ -19,7 +19,8 @@ const PAYLOAD = {"dataRequest":[{"requestContext":{"reportContext":{"reportId":"
 
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(checar(env));
+    // loga o resultado de cada execucao do cron (visivel nos Real-time Logs).
+    ctx.waitUntil(checar(env).then((r) => console.log("[cron]", JSON.stringify(r))));
   },
   async fetch(req, env) {
     const r = await checar(env, true);
@@ -83,20 +84,38 @@ async function checar(env, manual = false) {
   if (anterior !== null && sig === anterior) {
     return {ok: true, acao: "sem mudanca", total: tbl.totalCount};
   }
-  await env.WATCH_KV.put("sig", sig);  // grava SO quando muda (poupa o free tier)
+  // 1a vez (sem baseline): so grava o ponto de partida, sem disparar nada.
   if (anterior === null) {
+    await env.WATCH_KV.put("sig", sig);
     return {ok: true, acao: "baseline gravado", total: tbl.totalCount};
   }
 
-  const disp = await fetch(`https://api.github.com/repos/${env.GH_REPO}/dispatches`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${env.GH_TOKEN}`,
-      "Accept": "application/vnd.github+json",
-      "User-Agent": "embrapa-watcher",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({event_type: "fonte-mudou"}),
-  });
-  return {ok: true, acao: "MUDOU -> disparou Actions", github_status: disp.status, total: tbl.totalCount};
+  // Houve mudanca: dispara o Actions PRIMEIRO. So avancamos a assinatura no KV
+  // se o disparo REALMENTE der certo (2xx). Se falhar (token errado/expirado,
+  // repo errado, sem escopo), NAO gravamos -> no minuto seguinte tenta de novo
+  // (auto-cura), em vez de "engolir" a mudanca silenciosamente.
+  let disp, corpo = "";
+  try {
+    disp = await fetch(`https://api.github.com/repos/${env.GH_REPO}/dispatches`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.GH_TOKEN}`,
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "embrapa-watcher",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({event_type: "fonte-mudou"}),
+    });
+    corpo = await disp.text().catch(() => "");
+  } catch (e) {
+    return {ok: false, erro: "github fetch", detalhe: String(e), total: tbl.totalCount};
+  }
+  if (disp.status >= 200 && disp.status < 300) {
+    await env.WATCH_KV.put("sig", sig);   // so avanca o ponteiro se disparou de fato
+    return {ok: true, acao: "MUDOU -> disparou Actions",
+            github_status: disp.status, total: tbl.totalCount};
+  }
+  // disparo recusado: assinatura NAO gravada (vai retentar) + mostra o motivo.
+  return {ok: false, erro: "github dispatch falhou (assinatura NAO gravada, vai retentar)",
+          github_status: disp.status, corpo: corpo.slice(0, 200), total: tbl.totalCount};
 }

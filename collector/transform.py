@@ -5,9 +5,11 @@ Aqui mora a inteligencia do coletor -- nada vem "pronto" da fonte, exceto
 os poucos campos que exigem historico diario fino (complementados via extras).
 """
 from collections import defaultdict, OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import geo
 import timeline
+
+_BR = timezone(timedelta(hours=-3))   # Brasilia (UTC-3) — "hoje" igual ao diario
 
 
 
@@ -146,11 +148,25 @@ def build(raw):
         y, m = k.split("-")
         monthly_contr.append({"label": f"{m}/{y[2:]}", "value": monthly[k]})
 
-    # velocidade diaria (ultimos 15 dias com atividade ou ate hoje)
-    daily = defaultdict(int)
-    for ds in conv_dates:
-        daily[ds] += 1
-    if conv_dates:
+    # velocidade diaria (ultimos 15 dias, ate HOJE) — a partir do DIARIO (datas
+    # reais do backfill + coletas). A serie de eventos nao recebe o backfill,
+    # entao usariamos dados furados; o diario tem o ritmo real dia a dia.
+    ex = raw.extras or {}
+    novos_por_dia = ex.get("novos_por_dia") or {}
+    if novos_por_dia:
+        hoje_d = datetime.now(_BR).date()
+        # calcula sobre 25 dias (15 exibidos + folga para a media movel de 10)
+        dias = [(hoje_d - timedelta(days=i)).isoformat() for i in range(24, -1, -1)]
+        vals = [novos_por_dia.get(d, 0) for d in dias]
+        mm5 = _moving_avg(vals, 5)
+        mm10 = _moving_avg(vals, 10)
+        velocity = [{"date": dias[i], "convocados": vals[i], "mm5": mm5[i], "mm10": mm10[i]}
+                    for i in range(len(dias))][-15:]
+    elif conv_dates:
+        # fallback (sem diario): comportamento antigo pela serie de eventos.
+        daily = defaultdict(int)
+        for ds in conv_dates:
+            daily[ds] += 1
         d0 = datetime.strptime(conv_dates[0], "%Y-%m-%d").date()
         d1 = datetime.strptime(conv_dates[-1], "%Y-%m-%d").date()
         all_days, cur = [], d0
@@ -205,20 +221,20 @@ def build(raw):
     monthly_contr = _scale_series(monthly_contr, total_contratados)
     _alldates = conv_dates + contr_dates
     biz = (_business_days(datetime.strptime(min(_alldates), "%Y-%m-%d").date(),
-                          date.today()) if _alldates else 0)
+                          datetime.now(_BR).date()) if _alldates else 0)
     media_mm10 = velocity[-1]["mm10"] if velocity else 0
-    hoje = date.today().isoformat()
+    hoje = datetime.now(_BR).date().isoformat()
 
-    ex = raw.extras or {}
     changed_at = ex.get("changed_at") or {}
-    # "Convocados hoje" sai do MESMO diario do painel "Mudancas recentes":
-    # conta as novas convocacoes (novo=True) datadas de hoje. O backfill
-    # alimenta o diario (e nao a serie de eventos), entao contar pelo diario
-    # fica consistente tanto apos o backfill quanto nas coletas seguintes.
-    _mud = ex.get("changes") or []
-    convocados_hoje = sum(1 for c in _mud if c.get("date") == hoje and c.get("novo"))
-    if not _mud:
-        convocados_hoje = daily.get(hoje, 0)
+    # "Convocados hoje": novas convocacoes (novo=True) datadas de hoje, pelo
+    # MESMO diario que alimenta a velocidade -> KPI e grafico batem.
+    convocados_hoje = novos_por_dia.get(hoje, 0)
+    if not novos_por_dia:
+        convocados_hoje = sum(1 for c in (ex.get("changes") or [])
+                              if c.get("date") == hoje and c.get("novo"))
+    # Media/dia (10d) = media movel de 10 dias do proprio grafico de velocidade
+    # (que ja vem do diario). Assim o numero do KPI bate exatamente com o grafico.
+    media_diaria = round(media_mm10, 1)
     general = {
         "last_update": raw.last_update or datetime.now().strftime("%d/%m/%Y - %H:%M:%S"),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -229,7 +245,7 @@ def build(raw):
         "total_contratados": total_contratados,
         "pct_desistencias": round(total_desist / (total_convocados or 1) * 100, 1),
         "convocados_hoje": convocados_hoje,
-        "media_diaria_mm10": round(media_mm10),
+        "media_diaria_mm10": media_diaria,
         "avg_days_convocado_to_aceitou": ex.get("avg_days_convocado_to_aceitou", None),
         "vagas_edital": total_vagas,
         "fonte_ultima_mudanca": ex.get("fonte_ultima_mudanca"),
@@ -254,10 +270,7 @@ def build(raw):
         "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
                      "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",
-                     "lotacao": p["lotacao"],
-                     "alterado_em": changed_at.get(
-                         timeline.norm_key(p["opcao"], p["colocacao"], p["nome"]), "")}
-                    for p in pessoas],
+                     "lotacao": p["lotacao"]} for p in pessoas],
         "aceites_pendentes": aceites,
         "remaining_days": [{"cargo": "ALL",
                             "vagas_restantes": sum(c["vagas_abertas"] for c in por_cargo)}],

@@ -161,4 +161,19 @@ def update_and_build(pessoas):
     extras["changes"] = recent[:80]
     extras["changed_at"] = changed_at
     extras["fonte_ultima_mudanca"] = last_change
+
+    # Contagens diarias REAIS (datas verdadeiras do diario, SEM o cap de 80):
+    # novas convocacoes e contratacoes por dia. Alimentam o grafico de
+    # velocidade e a media/dia no transform -> grafico e media batem entre si.
+    novos_dia, contr_dia = {}, {}
+    for c in changes:
+        dt = c.get("date", "")
+        if not dt:
+            continue
+        if c.get("novo"):
+            novos_dia[dt] = novos_dia.get(dt, 0) + 1
+        if c.get("para") == _CONTRATADO:
+            contr_dia[dt] = contr_dia.get(dt, 0) + 1
+    extras["novos_por_dia"] = novos_dia
+    extras["contratados_por_dia"] = contr_dia
     return seed_conv + fwd_conv, seed_contr + fwd_contr, extras

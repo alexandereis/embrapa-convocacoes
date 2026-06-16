@@ -102,6 +102,21 @@ def _dedupe(pessoas):
     return out
 
 
+def _dedup_changes(changes):
+    """Remove eventos duplicados (mesma pessoa + mesma transicao + mesmo dia),
+    mantendo o MAIS ANTIGO. Evita repeticoes quando uma re-coleta redetecta
+    transicoes ja registradas (ex.: baseline que regrediu)."""
+    seen, out = set(), []
+    for c in sorted(changes, key=lambda c: c.get("ts", "")):   # mais antigo 1o
+        k = (c.get("opcao", ""), c.get("nome", ""), c.get("date", ""),
+             c.get("de", ""), c.get("para", ""))
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(c)
+    return out
+
+
 def _cutoff(days):
     return (datetime.now(_BR).date() - timedelta(days=days)).isoformat()
 
@@ -157,6 +172,7 @@ def update_and_build(pessoas):
 
     cut = _cutoff(_KEEP_DAYS)
     changes = [c for c in changes if c.get("date", "") >= cut]
+    changes = _dedup_changes(changes)   # remove re-deteccoes repetidas
 
     new_state = {"people": current,
                  "events": {"convocacoes": fwd_conv, "contratacoes": fwd_contr},

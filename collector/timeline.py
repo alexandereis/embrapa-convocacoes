@@ -79,15 +79,27 @@ def _rank(status):
 
 
 def _dedupe(pessoas):
-    """Uma linha por chave; em conflito mantem o status mais avancado.
-    Deterministico: independe da ordem das linhas da fonte."""
-    best = {}
+    """Uma linha por chave. Quando a fonte traz a MESMA pessoa em linhas com
+    status conflitantes (ex.: remanejamento), resolve de forma deterministica:
+      1) se houver status TERMINAL (Desistente/Desclassificado/Nao se
+         manifestou -> rank 0), ele PREVALECE: nesta fonte a linha ativa que
+         sobra costuma ser a obsoleta, e o terminal e o estado real atual;
+      2) senao, mantem o status mais avancado (_rank).
+    Independe da ordem das linhas -> sem flip-flop entre coletas."""
+    by_key = {}
     for p in pessoas:
-        k = _key(p)
-        atual = best.get(k)
-        if atual is None or _rank(p.get("status", "")) > _rank(atual.get("status", "")):
-            best[k] = p
-    return list(best.values())
+        by_key.setdefault(_key(p), []).append(p)
+    out = []
+    for rows in by_key.values():
+        if len(rows) == 1:
+            out.append(rows[0])
+            continue
+        terminais = [r for r in rows if _rank(r.get("status", "")) == 0]
+        if terminais:
+            out.append(terminais[0])
+        else:
+            out.append(max(rows, key=lambda r: _rank(r.get("status", ""))))
+    return out
 
 
 def _cutoff(days):

@@ -270,7 +270,10 @@ def build(raw):
         "pessoas": [{"col": p["colocacao"], "nome": p["nome"], "opcao": p["opcao"],
                      "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",
-                     "lotacao": p["lotacao"]} for p in pessoas],
+                     "lotacao": p["lotacao"],
+                     "alterado_em": changed_at.get(
+                         timeline.norm_key(p["opcao"], p["colocacao"], p["nome"]), "")}
+                    for p in pessoas],
         "aceites_pendentes": aceites,
         "remaining_days": [{"cargo": "ALL",
                             "vagas_restantes": sum(c["vagas_abertas"] for c in por_cargo)}],

@@ -178,19 +178,9 @@ def update_and_build(pessoas):
                                 "unidade": p.get("unidade", ""),
                                 "de": prev or "", "para": status, "novo": is_new})
                 changed_at[k] = ts
-        # SAIU: estava no baseline e sumiu da fonte agora -> registra a exclusao.
-        # A chave e "opcao|colocacao|nome" normalizado; extraimos os dados dela.
-        for k, prev in last_people.items():
-            if k in current or prev == _REMOVIDO:
-                continue
-            partes = k.split("|")
-            op = partes[0] if partes else ""
-            nome = partes[2] if len(partes) > 2 else ""
-            changes.append({"ts": ts, "date": day, "nome": nome,
-                            "opcao": op, "cargo": cargo_por_op.get(op, ""),
-                            "unidade": "", "de": prev or "", "para": _REMOVIDO,
-                            "novo": False})
-            changed_at[k] = ts
+        # SAIU: quem estava no baseline e sumiu da fonte simplesmente DEIXA de
+        # existir na nossa base (nao entra em people=current). Sem evento e sem
+        # estatistica -> "como se nao houvesse informacao dele". Apenas some.
         if current != last_people:
             last_change = day
 

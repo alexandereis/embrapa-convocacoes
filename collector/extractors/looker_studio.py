@@ -348,6 +348,24 @@ class LookerStudioExtractor(BaseExtractor):
             if len(rows) < req_rows:  # ultima pagina (servidor devolveu menos)
                 break
 
+        # Remove apenas linhas EXATAMENTE identicas (artefato de paginacao: se a
+        # fonte muda durante a coleta multi-pagina, uma linha de fronteira pode
+        # ser lida 2x). NAO toca em linhas legitimamente distintas (ex.: mesma
+        # pessoa em 2 lotacoes), que o painel OFICIAL tambem lista separadas ->
+        # nosso total espelha a tabela oficial 1:1.
+        vistos, unicas = set(), []
+        for p in d.pessoas:
+            chave = (p["opcao"], p["colocacao"], p["nome"], p["status"],
+                     p["unidade"], p["lotacao"])
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            unicas.append(p)
+        if len(unicas) != len(d.pessoas):
+            print(f"[coletor] dedup: {len(d.pessoas)} -> {len(unicas)} "
+                  f"(removidas {len(d.pessoas) - len(unicas)} linhas IDENTICAS)")
+        d.pessoas = unicas
+
         # ---- resumo por opcao: RECALCULADO dos status oficiais + catalogo ----
         agg = defaultdict(lambda: {"convocados": 0, "contratados": 0,
                                    "em_contratacao": 0, "aguardando": 0,
@@ -392,6 +410,7 @@ class LookerStudioExtractor(BaseExtractor):
         # A tabela oficial nao traz datas. timeline.py mantem a serie (curva
         # historica semeada uma vez + snapshots por coleta). Defensivo: se algo
         # falhar, a coleta continua, so a timeline fica como estiver.
+
         try:
             from timeline import update_and_build
             conv, contr, extras = update_and_build(d.pessoas)

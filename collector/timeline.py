@@ -21,6 +21,7 @@ STATE_PATH = os.path.join(_SITE_DATA, "timeline_state.json")
 
 _BR = timezone(timedelta(hours=-3))   # Brasilia = UTC-3 (sem horario de verao)
 _CONTRATADO = "Contratado"
+_REMOVIDO = "Removido"   # status sintetico: pessoa saiu da tabela oficial
 _KEEP_DAYS = 90        # quantos dias de diario manter no estado
 _RETURN_DAYS = 30      # quantos dias de diario expor para o site
 
@@ -102,6 +103,13 @@ def _dedupe(pessoas):
     return out
 
 
+def dedupe_pessoas(pessoas):
+    """Publico: colapsa linhas duplicadas (mesma pessoa no MESMO slot
+    opcao+colocacao, ex.: 2 lotacoes) num registro so. Usado pelo extrator para
+    a contagem nao inflar; mantem o status real (terminal prevalece)."""
+    return _dedupe(pessoas)
+
+
 def _dedup_changes(changes):
     """Remove eventos duplicados (mesma pessoa + mesma transicao + mesmo dia),
     mantendo o MAIS ANTIGO. Evita repeticoes quando uma re-coleta redetecta
@@ -146,10 +154,13 @@ def update_and_build(pessoas):
 
     first_run = not last_people
     current = {}
+    cargo_por_op = {}
     for p in pessoas:
         current[_key(p)] = p.get("status", "")
+        cargo_por_op.setdefault(p.get("opcao", ""), p.get("cargo", ""))
 
     if not first_run:
+        # ENTROU / MUDOU: percorre quem esta na fonte agora.
         for p in pessoas:
             k = _key(p)
             status = p.get("status", "")
@@ -167,8 +178,24 @@ def update_and_build(pessoas):
                                 "unidade": p.get("unidade", ""),
                                 "de": prev or "", "para": status, "novo": is_new})
                 changed_at[k] = ts
+        # SAIU: estava no baseline e sumiu da fonte agora -> registra a exclusao.
+        # A chave e "opcao|colocacao|nome" normalizado; extraimos os dados dela.
+        for k, prev in last_people.items():
+            if k in current or prev == _REMOVIDO:
+                continue
+            partes = k.split("|")
+            op = partes[0] if partes else ""
+            nome = partes[2] if len(partes) > 2 else ""
+            changes.append({"ts": ts, "date": day, "nome": nome,
+                            "opcao": op, "cargo": cargo_por_op.get(op, ""),
+                            "unidade": "", "de": prev or "", "para": _REMOVIDO,
+                            "novo": False})
+            changed_at[k] = ts
         if current != last_people:
             last_change = day
+
+    # alterado_em so interessa a quem esta na lista atual (limita o crescimento).
+    changed_at = {k: v for k, v in changed_at.items() if k in current}
 
     cut = _cutoff(_KEEP_DAYS)
     changes = [c for c in changes if c.get("date", "") >= cut]
@@ -190,9 +217,6 @@ def update_and_build(pessoas):
     extras["changed_at"] = changed_at
     extras["fonte_ultima_mudanca"] = last_change
 
-    # Contagens diarias REAIS (datas verdadeiras do diario, SEM o cap de 80):
-    # novas convocacoes e contratacoes por dia. Alimentam o grafico de
-    # velocidade e a media/dia no transform -> grafico e media batem entre si.
     novos_dia, contr_dia = {}, {}
     for c in changes:
         dt = c.get("date", "")

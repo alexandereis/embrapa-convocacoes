@@ -848,6 +848,27 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
 // filtros
 ['opSearch','opCargo','opArea','opStatus'].forEach(id=>document.getElementById(id).addEventListener('input',renderOpTable));
 ['pSearch','pStatus','pLimit'].forEach(id=>document.getElementById(id).addEventListener('input',renderPTable));
+// botao "X" para limpar os campos de busca (Convocados e Vagas por Opcao)
+(function(){
+  var css=document.createElement('style');
+  css.textContent='.search .clr{position:absolute;right:10px;top:50%;transform:translateY(-50%);'+
+    'width:20px;height:20px;border:none;background:var(--surface-2);color:var(--text-faint);'+
+    'border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;'+
+    'font-size:16px;line-height:1;padding:0}.search .clr:hover{color:var(--text);background:var(--border-2)}'+
+    '.search.has-val .clr{display:flex}.search.has-val input{padding-right:36px}';
+  document.head.appendChild(css);
+  ['opSearch','pSearch'].forEach(function(id){
+    var inp=document.getElementById(id); if(!inp)return;
+    var wrap=inp.closest('.search'); if(!wrap)return;
+    var btn=document.createElement('button');
+    btn.type='button'; btn.className='clr'; btn.setAttribute('aria-label','Limpar'); btn.textContent='×';
+    wrap.appendChild(btn);
+    var upd=function(){wrap.classList.toggle('has-val', !!inp.value);};
+    inp.addEventListener('input',upd);
+    btn.addEventListener('click',function(){inp.value=''; upd(); inp.dispatchEvent(new Event('input')); inp.focus();});
+    upd();
+  });
+})();
 // refresh: recarrega o data.json publicado pelo coletor
 async function refresh(){
   const b=document.getElementById('refreshBtn'),i=document.getElementById('refIcon'),t=document.getElementById('refTxt');

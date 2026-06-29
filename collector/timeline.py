@@ -23,7 +23,7 @@ _BR = timezone(timedelta(hours=-3))   # Brasilia = UTC-3 (sem horario de verao)
 _CONTRATADO = "Contratado"
 _REMOVIDO = "Removido"   # status sintetico: pessoa saiu da tabela oficial
 _KEEP_DAYS = 90        # quantos dias de diario manter no estado
-_RETURN_DAYS = 30      # quantos dias de diario expor para o site
+_RETURN_DAYS = 7       # quantos dias de diario expor para o site (painel enxuto)
 
 
 def _norm(s):

@@ -374,7 +374,9 @@ class LookerStudioExtractor(BaseExtractor):
             a = agg[p["opcao"]]
             a["convocados"] += 1  # estar na tabela = foi convocado
             s = p["status"]
-            if s in STATUS_CONTRATADO:
+            # "contratado" por palavra-chave -> inclui "Contratado subjudice"
+            # (contratacao especial, sob decisao judicial, mas contratacao).
+            if "contratado" in s.lower():
                 a["contratados"] += 1
             elif s in STATUS_EM_CONTRATACAO:
                 a["em_contratacao"] += 1
@@ -410,7 +412,6 @@ class LookerStudioExtractor(BaseExtractor):
         # A tabela oficial nao traz datas. timeline.py mantem a serie (curva
         # historica semeada uma vez + snapshots por coleta). Defensivo: se algo
         # falhar, a coleta continua, so a timeline fica como estiver.
-
         try:
             from timeline import update_and_build
             conv, contr, extras = update_and_build(d.pessoas)

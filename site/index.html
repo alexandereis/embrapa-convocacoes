@@ -507,7 +507,7 @@ function renderKPIs(){
   const ch=DATA.mudancas||[];
   const latest=ch.reduce((m,c)=>(c.date>m?c.date:m),'');
   const dd=latest?latest.slice(8,10)+'/'+latest.slice(5,7):'';
-  const dContr=ch.filter(c=>c.para==='Contratado'&&c.date===latest).length;
+  const dContr=ch.filter(c=>(c.para||'').startsWith('Contratado')&&c.date===latest).length;
   const dConv=ch.filter(c=>c.novo&&c.date===latest).length;
   const badge=n=>n>0?`<span class="delta" title="novos em ${dd}">▲ +${n}</span> `:'';
   const k=[
@@ -944,8 +944,8 @@ function notifyChange(d){
   const ch=(d&&d.mudancas)||[]; const latest=ch.reduce((m,c)=>(c.date>m?c.date:m),'');
   const hoje=ch.filter(c=>c.date===latest);
   const nc=hoje.filter(c=>c.novo).length;
-  const nk=hoje.filter(c=>c.para==='Contratado').length;
-  const outras=hoje.filter(c=>!c.novo&&c.para!=='Contratado').length;
+  const nk=hoje.filter(c=>(c.para||'').startsWith('Contratado')).length;
+  const outras=hoje.filter(c=>!c.novo&&!(c.para||'').startsWith('Contratado')).length;
   let body='O painel de convocações foi atualizado.';
   const p=[]; if(nc)p.push(nc+' nova(s) convocação(ões)'); if(nk)p.push(nk+' nova(s) contratação(ões)'); if(outras)p.push(outras+' outra(s) mudança(s)');
   if(p.length)body=p.join(' · ');

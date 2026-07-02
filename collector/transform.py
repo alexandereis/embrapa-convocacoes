@@ -210,7 +210,8 @@ def build(raw):
     # ---------- general ----------
     total_vagas = sum(c["total"] for c in por_cargo)
     total_convocados = sum(c["convocados"] for c in cg.values()) or len(pessoas)
-    total_contratados = por_status.get("Contratado", 0)
+    total_contratados = sum(v for k, v in por_status.items()
+                            if "contratado" in k.lower())
     total_aceitou = por_status.get("Aceitou", 0)
     total_desist = sum(c["desistencias"] for c in cg.values())
 

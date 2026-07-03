@@ -49,39 +49,53 @@ jobs:
         run: python collector/collect.py
 
       - name: Commitar dados se mudaram
+        id: dados
         run: |
           git config user.name "embrapa-collector-bot"
           git config user.email "actions@users.noreply.github.com"
           # data.json + estado da timeline (a serie temporal propria cresce a
           # cada coleta). O seed e o catalogo sao versionados manualmente.
           git add site/data/data.json site/data/timeline_state.json 2>/dev/null || true
+          CHANGED=false
           if git diff --cached --quiet; then
             echo "Sem mudancas nos dados."
-            exit 0
-          fi
-          # [skip ci] impede que este commit re-dispare o workflow (evita run e
-          # deploy duplicados; o proprio run atual ja publica os dados novos).
-          git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC') [skip ci]"
-          # push resiliente: se o remoto avancou (push concorrente), rebaseia e
-          # tenta de novo. Em conflito de arquivo gerado, fica com a versao local.
-          for i in 1 2 3 4 5; do
-            if git push; then
-              echo "push ok"; exit 0
+          else
+            # [skip ci] impede que este commit re-dispare o workflow.
+            git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC') [skip ci]"
+            # push resiliente: se o remoto avancou, rebaseia e tenta de novo.
+            PUSHED=false
+            for i in 1 2 3 4 5; do
+              if git push; then echo "push ok"; PUSHED=true; break; fi
+              echo "push rejeitado (tentativa $i) — rebaseando no remoto..."
+              git pull --rebase -X theirs origin main || git rebase --abort
+              sleep 3
+            done
+            if [ "$PUSHED" != "true" ]; then
+              echo "Falha ao empurrar apos varias tentativas."; exit 1
             fi
-            echo "push rejeitado (tentativa $i) — rebaseando no remoto..."
-            git pull --rebase -X theirs origin main || git rebase --abort
-            sleep 3
-          done
-          echo "Falha ao empurrar apos varias tentativas."; exit 1
+            CHANGED=true
+          fi
+          # So publica no Pages quando ha novidade real (evita deploys de
+          # conteudo identico, que causam "Deployment failed, try again later"),
+          # ou quando e mudanca de codigo (push) / disparo manual.
+          if [ "$CHANGED" = "true" ] || [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Nada mudou -> sem deploy nesta execucao."
+          fi
 
       - name: Configurar Pages
+        if: steps.dados.outputs.deploy == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload do site
+        if: steps.dados.outputs.deploy == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: Deploy no GitHub Pages
         id: deployment
+        if: steps.dados.outputs.deploy == 'true'
         uses: actions/deploy-pages@v4

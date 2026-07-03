@@ -11,7 +11,8 @@ on:
   repository_dispatch:
     types: [fonte-mudou]
   schedule:
-    - cron: "7 */6 * * *"   # rede de seguranca: 4x ao dia (UTC)
+    - cron: "7 */6 * * *"    # coleta: rede de seguranca a cada 6h (UTC)
+    - cron: "23 */12 * * *"  # deploy GARANTIDO a cada 12h (mesmo sem mudanca)
   workflow_dispatch:
   push:
     branches: [ main ]
@@ -78,7 +79,7 @@ jobs:
           # So publica no Pages quando ha novidade real (evita deploys de
           # conteudo identico, que causam "Deployment failed, try again later"),
           # ou quando e mudanca de codigo (push) / disparo manual.
-          if [ "$CHANGED" = "true" ] || [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$CHANGED" = "true" ] || [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event.schedule }}" = "23 */12 * * *" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"

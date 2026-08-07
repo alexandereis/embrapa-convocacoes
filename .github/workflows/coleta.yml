@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -99,4 +99,14 @@ jobs:
       - name: Deploy no GitHub Pages
         id: deployment
         if: steps.dados.outputs.deploy == 'true'
+        continue-on-error: true       # se o Pages engasgar, tenta de novo abaixo
         uses: actions/deploy-pages@v4
+        with:
+          timeout: 300000             # 5 min/tentativa (deploy de artefato e rapido)
+
+      - name: Deploy no GitHub Pages (2a tentativa)
+        id: deployment2
+        if: steps.dados.outputs.deploy == 'true' && steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: 600000             # 10 min na tentativa final

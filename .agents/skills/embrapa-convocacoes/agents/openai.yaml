@@ -1,0 +1,6 @@
+interface:
+  display_name: "Embrapa Convocacoes"
+  short_description: "Repo-specific patterns and workflows for embrapa-convocacoes"
+  default_prompt: "Use the embrapa-convocacoes repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true

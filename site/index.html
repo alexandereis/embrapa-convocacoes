@@ -186,8 +186,8 @@ tbody tr:last-child td{border-bottom:none}
 .empty{padding:40px;text-align:center;color:var(--text-faint)}
 .pend{font-size:12px;font-style:italic;color:var(--text-faint);opacity:.85}
 .mut{color:var(--text-faint);font-size:12px}
-/* marca quem foi convocado em mais de uma OPCAO: duas convocacoes reais, com
-   situacoes que podem diferir — nao e a mesma linha repetida. */
+/* marca quem foi convocado mais de uma vez: chamadas distintas, com situacoes
+   que podem diferir — nao e a mesma linha repetida. */
 .multi{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:99px;
   font-size:10.5px;font-weight:700;letter-spacing:.02em;vertical-align:1px;
   color:var(--text-faint);background:var(--surface-3);border:1px solid var(--border);
@@ -807,12 +807,13 @@ function renderOpTable(){
 }
 
 /* ============ TABELA DE PESSOAS ============ */
-/* Algumas pessoas foram convocadas em MAIS DE UMA opção (cargos/áreas
-   diferentes) e podem estar, por exemplo, desistentes numa e contratadas
-   noutra. São duas convocações reais — a marca evita que o leitor ache que a
-   linha está duplicada ou que o status está errado. */
+/* Algumas pessoas foram chamadas mais de uma vez: em opções diferentes (outro
+   cargo/área) ou na MESMA opção por duas listas de classificação — primeiro
+   pela cota, depois pela ampla concorrência, em datas diferentes. Cada chamada
+   tem situação própria: dá para estar desistente numa e contratada noutra. A
+   marca evita que o leitor ache que a linha está duplicada. */
 function multiTag(n){
-  return n>1?`<span class="multi" title="Esta pessoa foi convocada em ${n} opções diferentes. Cada linha é uma convocação, com situação própria.">${n} opções</span>`:'';
+  return n>1?`<span class="multi" title="Esta pessoa foi convocada ${n} vezes — em opções diferentes ou na mesma opção por listas de classificação diferentes (cota e ampla concorrência). Cada linha é uma chamada, com situação própria.">${n} convocações</span>`:'';
 }
 let pSort={k:'status',dir:1};
 function fillPStatus(){

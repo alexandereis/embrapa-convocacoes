@@ -9,9 +9,12 @@ Cobrem os dois defeitos observados em producao:
      geracao nova (1123 linhas). Como toda diferenca virava um evento datado,
      a mesma pessoa aparecia varias vezes com status contraditorios.
 
-  2. A mesma pessoa aparece mais de uma vez na MESMA opcao (uma linha pela
-     cota, outra pela ampla concorrencia, ou duas lotacoes). Isso inflava a
-     contagem de convocados e quebrava o historico dela.
+  2. A mesma pessoa aparece mais de uma vez na MESMA opcao. ATENCAO: duas
+     COLOCACOES diferentes (uma pela cota, outra pela ampla concorrencia) sao
+     DUAS convocacoes de verdade -- o git mostra a linha "23o AC" do RODRIGO
+     MARTINS CANUTO ROCHA nascendo em 19/06, meses depois da "1o PCD" dele.
+     Duplicata mesmo e so a MESMA colocacao repetida (mesma vaga na fila) com
+     lotacoes diferentes, que inflava a contagem.
 """
 import json
 import os
@@ -111,7 +114,7 @@ class TestRegressaoIsolada(TimelineTestCase):
     def test_regressao_isolada_nao_altera_o_status_publicado(self):
         self.coletar([pessoa("ANA", "Contratado"), pessoa("BIA", "Contratado")])
         self.coletar([pessoa("ANA", "Aceitou"), pessoa("BIA", "Contratado")])
-        chave = timeline.norm_key("40001690", "ANA")
+        chave = timeline.norm_key("40001690", "1o AC", "ANA")
         self.assertEqual(self.estado()["people"][chave], "Contratado")
 
     def test_ida_e_volta_nao_deixa_rastro(self):
@@ -146,48 +149,76 @@ class TestRegressaoIsolada(TimelineTestCase):
 
 
 class TestDedupePessoas(TimelineTestCase):
-    """A mesma pessoa na MESMA opcao e UMA convocacao, nao duas."""
+    """Uma convocacao = uma vaga na fila = opcao + colocacao. Colocacao
+    diferente e chamada diferente, mesmo na mesma opcao e mesma pessoa."""
 
-    def test_mesma_pessoa_mesma_opcao_em_duas_colocacoes_conta_uma_vez(self):
-        linhas = [pessoa("GABRIELA", "Desistente", opcao="40000188", colocacao="2o PPP"),
-                  pessoa("GABRIELA", "Desistente", opcao="40000188", colocacao="45o AC")]
-        self.assertEqual(len(timeline.dedupe_pessoas(linhas)), 1)
+    def test_mesma_pessoa_mesma_opcao_em_duas_colocacoes_sao_duas_convocacoes(self):
+        """Chamada pela cota e, depois, pela ampla concorrencia. Provado no git:
+        a linha '23o AC' do RODRIGO nasceu em 19/06, a '1o PCD' ja existia."""
+        linhas = [pessoa("RODRIGO", "Desistente", opcao="40000127", colocacao="1o PCD"),
+                  pessoa("RODRIGO", "Desistente", opcao="40000127", colocacao="23o AC")]
+        self.assertEqual(len(timeline.dedupe_pessoas(linhas)), 2)
 
     def test_mesma_pessoa_em_opcoes_diferentes_conta_duas_vezes(self):
         linhas = [pessoa("ABIAS", "Desistente", opcao="40003735"),
                   pessoa("ABIAS", "Contratado", opcao="40001749")]
         self.assertEqual(len(timeline.dedupe_pessoas(linhas)), 2)
 
+    def test_mesma_colocacao_em_duas_lotacoes_conta_uma_vez(self):
+        """Mesma vaga na fila listada em duas lotacoes (remanejamento). Uma so."""
+        linhas = [pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RR - Roraima", lotacao="Boa Vista"),
+                  pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RO - Rondonia", lotacao="Porto Velho")]
+        self.assertEqual(len(timeline.dedupe_pessoas(linhas)), 1)
+
     def test_colapso_prefere_a_linha_com_lotacao_conhecida(self):
-        linhas = [pessoa("RODRIGO", "Desistente", opcao="40000127", colocacao="1o PCD",
+        linhas = [pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
                          unidade="", lotacao=""),
-                  pessoa("RODRIGO", "Desistente", opcao="40000127", colocacao="23o AC",
-                         unidade="CPPSUL - Pec Sul", lotacao="Bage")]
-        self.assertEqual(timeline.dedupe_pessoas(linhas)[0]["unidade"], "CPPSUL - Pec Sul")
+                  pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RR - Roraima", lotacao="Boa Vista")]
+        self.assertEqual(timeline.dedupe_pessoas(linhas)[0]["unidade"], "CPAF/RR - Roraima")
 
     def test_colapso_mantem_o_status_terminal(self):
-        linhas = [pessoa("EDIVANIO", "Convocado", opcao="40001565", colocacao="1o PCD"),
-                  pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="4o AC")]
+        linhas = [pessoa("EDIVANIO", "Reconvocado", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RO - Rondonia"),
+                  pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RR - Roraima")]
         self.assertEqual(timeline.dedupe_pessoas(linhas)[0]["status"], "Desistente")
 
     def test_colapso_independe_da_ordem_das_linhas(self):
-        a = pessoa("EDIVANIO", "Convocado", opcao="40001565", colocacao="1o PCD")
-        b = pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="4o AC")
+        a = pessoa("EDIVANIO", "Reconvocado", opcao="40001565", colocacao="1o PCD",
+                   unidade="CPAF/RO - Rondonia")
+        b = pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                   unidade="CPAF/RR - Roraima")
         self.assertEqual(timeline.dedupe_pessoas([a, b]), timeline.dedupe_pessoas([b, a]))
 
-    def test_duas_linhas_da_mesma_pessoa_nao_geram_evento_fantasma(self):
-        linhas = [pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD"),
-                  pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="4o AC")]
+    def test_duas_vagas_da_mesma_pessoa_geram_dois_eventos(self):
+        """Chamada pela cota e pela ampla no mesmo dia sao dois fatos. O diario
+        precisa registrar os dois -- antes o dedup de eventos, que ignorava a
+        colocacao, engolia o segundo."""
+        self.coletar([pessoa("RODRIGO", "Convocado", opcao="40000127", colocacao="1o PCD"),
+                      pessoa("RODRIGO", "Convocado", opcao="40000127", colocacao="23o AC")])
+        extras = self.coletar(
+            [pessoa("RODRIGO", "Desistente", opcao="40000127", colocacao="1o PCD"),
+             pessoa("RODRIGO", "Desistente", opcao="40000127", colocacao="23o AC")])
+        self.assertEqual(len(self.mudancas_de(extras, "RODRIGO")), 2)
+
+    def test_duas_lotacoes_da_mesma_vaga_nao_geram_evento_fantasma(self):
+        linhas = [pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RR - Roraima"),
+                  pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
+                         unidade="CPAF/RO - Rondonia")]
         self.coletar(linhas)
         extras = self.coletar(list(reversed(linhas)))
         self.assertEqual(extras["changes"], [])
 
 
-class TestMigracaoDeChave(TimelineTestCase):
-    """O estado antigo usava opcao|colocacao|nome. Trocar de chave nao pode
-    fazer 1.138 pessoas parecerem 'recem-convocadas'."""
+class TestChaveDaConvocacao(TimelineTestCase):
+    """A chave e opcao|colocacao|nome -- a vaga na fila. Estado gravado com ela
+    tem que ser reconhecido, senao as ~1.140 pessoas viram 'recem-convocadas'."""
 
-    def test_estado_antigo_nao_gera_convocacao_nova(self):
+    def test_estado_existente_nao_gera_convocacao_nova(self):
         antigo = {"people": {"40001690|1O AC|ANA": "Contratado"},
                   "events": {"convocacoes": [], "contratacoes": []},
                   "changes": [], "changed_at": {"40001690|1O AC|ANA": "2026-01-01 10:00"},
@@ -197,7 +228,7 @@ class TestMigracaoDeChave(TimelineTestCase):
         extras = self.coletar([pessoa("ANA", "Contratado")])
         self.assertEqual(extras["changes"], [])
 
-    def test_migracao_preserva_o_alterado_em(self):
+    def test_estado_existente_preserva_o_alterado_em(self):
         antigo = {"people": {"40001690|1O AC|ANA": "Contratado"},
                   "events": {"convocacoes": [], "contratacoes": []},
                   "changes": [], "changed_at": {"40001690|1O AC|ANA": "2026-01-01 10:00"},
@@ -205,7 +236,7 @@ class TestMigracaoDeChave(TimelineTestCase):
         with open(timeline.STATE_PATH, "w", encoding="utf-8") as f:
             json.dump(antigo, f)
         extras = self.coletar([pessoa("ANA", "Contratado")])
-        self.assertEqual(extras["changed_at"][timeline.norm_key("40001690", "ANA")],
+        self.assertEqual(extras["changed_at"][timeline.norm_key("40001690", "1o AC", "ANA")],
                          "2026-01-01 10:00")
 
 

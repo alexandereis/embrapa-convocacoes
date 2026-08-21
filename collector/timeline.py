@@ -5,10 +5,13 @@
     site/data/timeline_state.json. QUALQUER mudanca de status vira um evento com
     DATA E HORA. Tambem guardamos, por pessoa, o instante da ultima alteracao.
 
-A chave da pessoa e OPCAO|NOME, NORMALIZADA (sem acento, maiusculas). Nao entra
-a colocacao: a fonte lista a MESMA pessoa na MESMA opcao em mais de uma linha
-(uma pela cota, outra pela ampla concorrencia, ou duas lotacoes) e isso e UMA
-convocacao so -- ver _dedupe().
+A chave e OPCAO|COLOCACAO|NOME, NORMALIZADA (sem acento, maiusculas): uma
+convocacao e uma VAGA NA FILA, nao uma pessoa. A mesma pessoa pode ser chamada
+duas vezes na mesma opcao -- primeiro pela cota, depois pela ampla concorrencia,
+em datas diferentes. Confirmado no historico: a linha "23o AC" de RODRIGO
+MARTINS CANUTO ROCHA (opcao 40000127) nasceu em 19/06/2026, meses depois da
+"1o PCD" dele. Sao duas chamadas, e as duas contam. O que _dedupe() colapsa e
+so a MESMA vaga repetida em duas lotacoes.
 
 CONFIANCA NA FONTE. O painel oficial (Looker) as vezes devolve uma GERACAO
 ANTIGA do conjunto, servida de cache. Aconteceu de verdade: em 2026-08-08 07:05
@@ -69,8 +72,8 @@ def norm_nome(nome):
     return _norm(nome)
 
 
-def norm_key(opcao, nome):
-    return "{}|{}".format(_norm(opcao), _norm(nome))
+def norm_key(opcao, colocacao, nome):
+    return "{}|{}|{}".format(_norm(opcao), _norm(colocacao), _norm(nome))
 
 
 def _event(day, cargo):
@@ -92,7 +95,7 @@ def _write(path, obj):
 
 
 def _key(p):
-    return norm_key(p.get("opcao", ""), p.get("nome", ""))
+    return norm_key(p.get("opcao", ""), p.get("colocacao", ""), p.get("nome", ""))
 
 
 def _e_contratado(status):
@@ -145,36 +148,28 @@ def _e_suspeita(prev, novo, historico):
     return _rank(novo) < _rank(prev)
 
 
-def _cota_especifica(colocacao):
-    """True quando a colocacao e de cota (PPP/PcD), nao de ampla concorrencia."""
-    s = _norm(colocacao)
-    return "PPP" in s or "PCD" in s or "PNE" in s
-
-
 def _prioridade(p):
-    """Ordena as linhas da MESMA pessoa na MESMA opcao -- menor = fica.
+    """Ordena as linhas da MESMA vaga (opcao+colocacao+nome) -- menor = fica.
 
     1) status TERMINAL (Desistente/Desclassificado/Nao se manifestou) prevalece:
        nesta fonte a linha ativa que sobra costuma ser a obsoleta;
     2) senao, o status mais avancado;
     3) prefere a linha com lotacao conhecida (alimenta mapa e ranking de unidades);
-    4) prefere a linha da cota (PPP/PcD), que e o dado distintivo;
-    5) desempate lexicografico -> independe da ordem em que a fonte devolveu.
+    4) desempate lexicografico -> independe da ordem em que a fonte devolveu.
     """
     status = p.get("status", "")
     return (0 if _rank(status) == 0 else 1,
             -_rank(status),
             0 if (p.get("unidade") or "").strip() else 1,
-            0 if _cota_especifica(p.get("colocacao")) else 1,
-            _norm(p.get("colocacao")), _norm(p.get("unidade")), _norm(p.get("lotacao")))
+            _norm(p.get("unidade")), _norm(p.get("lotacao")))
 
 
 def _dedupe(pessoas):
-    """Uma linha por pessoa POR OPCAO. A fonte lista a mesma pessoa na mesma
-    opcao mais de uma vez (cota + ampla concorrencia, ou duas lotacoes) e isso
-    e UMA convocacao so -- contar duas inflava o total de convocados e partia o
-    historico dela em duas linhas do tempo. Pessoa em opcoes DIFERENTES continua
-    contando uma vez por opcao: sao convocacoes distintas de verdade."""
+    """Uma linha por VAGA (opcao+colocacao+nome). A fonte as vezes lista a mesma
+    vaga em duas lotacoes (remanejamento) -- ai e uma convocacao so, e contar
+    duas inflava convocados, desistencias e o mapa. NAO mexe em colocacoes
+    diferentes: chamada pela cota e chamada pela ampla concorrencia sao duas
+    convocacoes de verdade, ainda que da mesma pessoa na mesma opcao."""
     by_key = {}
     for p in pessoas:
         by_key.setdefault(_key(p), []).append(p)
@@ -183,19 +178,21 @@ def _dedupe(pessoas):
 
 
 def dedupe_pessoas(pessoas):
-    """Publico: colapsa as linhas duplicadas da mesma pessoa/opcao num registro
-    so. O extrator chama ANTES de publicar, para a contagem nao inflar."""
+    """Publico: colapsa as linhas duplicadas da mesma vaga num registro so.
+    O extrator chama ANTES de publicar, para a contagem nao inflar."""
     return _dedupe(pessoas)
 
 
 def _dedup_changes(changes):
-    """Remove eventos duplicados (mesma pessoa + mesma transicao + mesmo dia),
+    """Remove eventos duplicados (mesma VAGA + mesma transicao + mesmo dia),
     mantendo o MAIS ANTIGO. Evita repeticoes quando uma re-coleta redetecta
-    transicoes ja registradas (ex.: baseline que regrediu)."""
+    transicoes ja registradas (ex.: baseline que regrediu). A colocacao entra na
+    chave: sem ela, duas chamadas da mesma pessoa na mesma opcao (uma pela cota,
+    outra pela ampla) desapareciam uma na outra."""
     seen, out = set(), []
     for c in sorted(changes, key=lambda c: c.get("ts", "")):   # mais antigo 1o
-        k = (c.get("opcao", ""), c.get("nome", ""), c.get("date", ""),
-             c.get("de", ""), c.get("para", ""))
+        k = (c.get("opcao", ""), c.get("col", ""), c.get("nome", ""),
+             c.get("date", ""), c.get("de", ""), c.get("para", ""))
         if k in seen:
             continue
         seen.add(k)
@@ -205,31 +202,6 @@ def _dedup_changes(changes):
 
 def _cutoff(days):
     return (datetime.now(_BR).date() - timedelta(days=days)).isoformat()
-
-
-# ---------------------------------------------------------------------------
-# Migracao de chave: o estado antigo usava OPCAO|COLOCACAO|NOME. Sem converter,
-# a troca faria as ~1.140 pessoas parecerem "recem-convocadas" de uma vez.
-# ---------------------------------------------------------------------------
-def _chave_nova(k):
-    partes = str(k).split("|")
-    return "{}|{}".format(partes[0], partes[-1]) if len(partes) > 2 else k
-
-
-def _migrar(mapa, escolher):
-    """Reindexa {chave_antiga: valor} para a chave nova. `escolher(a, b)` decide
-    quando duas linhas da mesma pessoa colapsam na mesma chave."""
-    out = {}
-    for k, v in (mapa or {}).items():
-        nk = _chave_nova(k)
-        out[nk] = escolher(out[nk], v) if nk in out else v
-    return out
-
-
-def _melhor_status(a, b):
-    if _rank(a) == 0 or _rank(b) == 0:      # terminal prevalece
-        return a if _rank(a) == 0 else b
-    return a if _rank(a) >= _rank(b) else b
 
 
 def _assinatura_lote(suspeitas, sumiram, current):
@@ -263,24 +235,23 @@ def update_and_build(pessoas):
     state = _read(STATE_PATH, {}) or {}
     if not isinstance(state, dict):
         state = {}
-    last_people = _migrar(state.get("people", {}), _melhor_status)
+    last_people = dict(state.get("people", {}))
     ev = state.get("events", {}) if isinstance(state.get("events"), dict) else {}
     fwd_conv = list(ev.get("convocacoes", []))
     fwd_contr = list(ev.get("contratacoes", []))
     changes = list(state.get("changes", []))
-    changed_at = _migrar(state.get("changed_at", {}), max)
+    changed_at = dict(state.get("changed_at", {}))
     last_change = state.get("last_change")
     # historico de status ja vistos por pessoa: e o que revela uma leitura de
     # geracao antiga (voltar a um status que a pessoa JA teve).
-    hist = {_chave_nova(k): list(v) for k, v in (state.get("hist") or {}).items()}
-    pendentes = {_chave_nova(k): dict(v)
-                 for k, v in (state.get("pendentes") or {}).items()}
+    hist = {k: list(v) for k, v in (state.get("hist") or {}).items()}
+    pendentes = {k: dict(v) for k, v in (state.get("pendentes") or {}).items()}
     lote = dict(state.get("lote") or {})
     # Quem JA entrou em cada serie. Sem isso, uma pessoa que some da fonte e
     # volta (o que uma leitura de geracao antiga provoca) era contada de novo e
     # inflava o ritmo da linha do tempo.
-    convocados_ja = {_chave_nova(k) for k in (state.get("convocados") or [])}
-    contratados_ja = {_chave_nova(k) for k in (state.get("contratados") or [])}
+    convocados_ja = set(state.get("convocados") or [])
+    contratados_ja = set(state.get("contratados") or [])
 
     first_run = not last_people
     # Estado antigo (sem 'hist'/'contratados'): semeia com o que ja sabemos, para
@@ -353,7 +324,8 @@ def update_and_build(pessoas):
                 fwd_contr.append(_event(day, cargo))
             if mudou:
                 changes.append({"ts": ts, "date": day, "nome": p.get("nome", ""),
-                                "opcao": p.get("opcao", ""), "cargo": cargo,
+                                "opcao": p.get("opcao", ""),
+                                "col": p.get("colocacao", ""), "cargo": cargo,
                                 "unidade": p.get("unidade", ""),
                                 "de": prev or "", "para": status, "novo": is_new})
                 changed_at[k] = ts

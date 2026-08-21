@@ -226,10 +226,12 @@ def build(raw):
     media_mm10 = velocity[-1]["mm10"] if velocity else 0
     hoje = datetime.now(_BR).date().isoformat()
 
-    # Quantas convocacoes CADA pessoa tem. 17 pessoas foram convocadas em mais
-    # de uma OPCAO (cargos/areas diferentes) e podem estar, por exemplo,
-    # Desistente numa e Contratada noutra. Sao duas convocacoes reais, nao
-    # duplicata -- o site marca a linha para o leitor nao achar que e erro.
+    # Quantas convocacoes CADA pessoa tem. Ha quem tenha sido chamado mais de
+    # uma vez: em opcoes diferentes (outro cargo/area) ou na MESMA opcao por
+    # duas listas de classificacao (cota e ampla concorrencia), em datas
+    # diferentes. Cada chamada tem situacao propria -- da para estar Desistente
+    # numa e Contratado noutra. Sao convocacoes reais, nao duplicata: o site
+    # marca a linha para o leitor nao achar que e erro.
     convs_por_pessoa = defaultdict(int)
     for p in pessoas:
         convs_por_pessoa[timeline.norm_nome(p["nome"])] += 1
@@ -282,7 +284,7 @@ def build(raw):
                      "lotacao": p["lotacao"],
                      "convs": convs_por_pessoa[timeline.norm_nome(p["nome"])],
                      "alterado_em": changed_at.get(
-                         timeline.norm_key(p["opcao"], p["nome"]), "")}
+                         timeline.norm_key(p["opcao"], p["colocacao"], p["nome"]), "")}
                     for p in pessoas],
         "aceites_pendentes": aceites,
         "remaining_days": [{"cargo": "ALL",

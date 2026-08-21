@@ -59,13 +59,13 @@ A coleta roda automaticamente ao longo do dia.
 Duas coisas o painel trata de propósito de forma diferente da tabela bruta:
 
 - **Uma linha por convocação, não por pessoa.** Há quem tenha sido chamado mais
-  de uma vez: em **opções diferentes** (outro cargo/área) ou na **mesma opção por
-  duas listas de classificação** — primeiro pela cota, depois pela ampla
-  concorrência, em datas diferentes. Cada chamada tem situação própria, então a
-  mesma pessoa pode aparecer desistente numa e contratada noutra. Não é
-  repetição: o nome vem marcado com "N convocações" para deixar isso claro. O
-  único caso que juntamos é a **mesma vaga** listada em duas lotações (efeito de
-  remanejamento), que é uma chamada só.
+  de uma vez: em **opções diferentes** (outro cargo/área), na **mesma opção por
+  duas listas de classificação** (primeiro pela cota, depois pela ampla
+  concorrência, em datas diferentes) ou para a **mesma vaga em cidades
+  diferentes**. Cada chamada tem situação própria, então a mesma pessoa pode
+  aparecer desistente numa e contratada noutra. Não é repetição: o nome vem
+  marcado com "N convocações" para deixar isso claro. O total de convocados
+  **espelha a tabela oficial**, chamada por chamada.
 - **Leitura desatualizada da fonte é descartada.** O painel oficial de vez em
   quando devolve uma versão antiga dos dados (cache), o que faria pessoas
   "voltarem" de contratadas para aceitas e depois avançarem de novo. Quando a

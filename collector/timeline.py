@@ -214,18 +214,25 @@ def _assinatura_lote(suspeitas, sumiram, current):
 def update_and_build(pessoas):
     """Devolve (convocacoes, contratacoes, extras, pessoas).
 
-    `pessoas` volta colapsado (uma linha por pessoa/opcao) e com o status
-    CONFIAVEL: se a fonte regrediu alguem e ainda nao confirmou, publicamos o
-    status anterior. Levanta FonteDesatualizada quando a coleta inteira parece
-    uma geracao antiga -- nesse caso o chamador descarta a coleta.
+    `pessoas` volta com TODAS as linhas da fonte -- o total do painel espelha o
+    oficial -- e com o status CONFIAVEL: se a fonte regrediu alguem e ainda nao
+    confirmou, publicamos o status anterior. Levanta FonteDesatualizada quando
+    a coleta inteira parece uma geracao antiga; o chamador descarta a coleta.
+
+    O HISTORICO, porem, e ancorado na VAGA (opcao|colocacao|nome), nao na linha:
+    a mesma vaga as vezes aparece em duas linhas (a EMBRAPA ofereceu em duas
+    cidades e manteve as duas). Ancorar na linha seria pior -- a lotacao muda
+    quando a pessoa escolhe a localidade, e cada escolha viraria uma
+    "convocacao nova" fantasma.
     """
     now = datetime.now(_BR)
     day = now.date().isoformat()
     ts = now.strftime("%Y-%m-%d %H:%M")
 
-    # Colapsa linhas duplicadas da mesma pessoa/opcao ANTES de tudo, de forma
-    # deterministica -> sem flip-flop fantasma entre coletas.
-    pessoas = _dedupe(pessoas)
+    # `todas` = o que vai para o site (espelha a fonte 1:1). `pessoas` = uma
+    # linha por VAGA, de forma deterministica, para o diff de estado.
+    todas = list(pessoas)
+    pessoas = _dedupe(todas)
 
     seed = _read(SEED_PATH, {}) or {}
     seed_conv = list(seed.get("convocacoes", []))
@@ -253,6 +260,7 @@ def update_and_build(pessoas):
     convocados_ja = set(state.get("convocados") or [])
     contratados_ja = set(state.get("contratados") or [])
 
+    segurados = {}          # vagas cujo status regrediu e ainda nao confirmou
     first_run = not last_people
     # Estado antigo (sem 'hist'/'contratados'): semeia com o que ja sabemos, para
     # a guarda comecar a valer imediatamente e as contratacoes nao repetirem.
@@ -311,8 +319,7 @@ def update_and_build(pessoas):
                 if n < _CONFIRMACOES:
                     pendentes[k] = {"status": status, "n": n}
                     current[k] = prev
-                    # copia: NAO mexemos nos dicts que o chamador nos passou.
-                    pessoas[i] = dict(p, status=prev)
+                    segurados[k] = prev
                     continue
             pendentes.pop(k, None)
 
@@ -386,4 +393,11 @@ def update_and_build(pessoas):
             contr_dia[dt] = contr_dia.get(dt, 0) + 1
     extras["novos_por_dia"] = novos_dia
     extras["contratados_por_dia"] = contr_dia
-    return seed_conv + fwd_conv, seed_contr + fwd_contr, extras, pessoas
+
+    # Status segurado vale para TODAS as linhas daquela vaga -- senao o painel
+    # mostraria a mesma vaga com duas situacoes. Copia: nao mexemos nos dicts
+    # que o chamador nos passou.
+    if segurados:
+        todas = [dict(p, status=segurados[_key(p)]) if _key(p) in segurados else p
+                 for p in todas]
+    return seed_conv + fwd_conv, seed_contr + fwd_contr, extras, todas

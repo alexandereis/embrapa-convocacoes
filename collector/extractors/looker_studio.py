@@ -366,11 +366,10 @@ class LookerStudioExtractor(BaseExtractor):
 
         # ---- linha do tempo + status confiavel (ANTES de contar) ----
         # A tabela oficial nao traz datas; timeline.py mantem a serie (curva
-        # historica semeada uma vez + snapshots por coleta) e devolve as pessoas
-        # ja COLAPSADAS -- a fonte lista a mesma pessoa na mesma opcao em mais de
-        # uma linha (cota + ampla concorrencia, ou duas lotacoes) e isso e UMA
-        # convocacao so. Por isso o colapso vem antes do resumo por opcao: contar
-        # duas vezes inflava convocados, desistencias e o mapa.
+        # historica semeada uma vez + snapshots por coleta) e devolve as linhas
+        # com o status CONFIAVEL -- por isso roda ANTES do resumo por opcao, que
+        # conta em cima delas. O total espelha o oficial 1:1: se a EMBRAPA lista
+        # a mesma vaga em duas cidades, contamos as duas, como ela conta.
         # Defensivo: se algo falhar, a coleta continua e a timeline fica como
         # esta -- excecao: FonteDesatualizada aborta a coleta inteira.
         try:
@@ -378,15 +377,11 @@ class LookerStudioExtractor(BaseExtractor):
         except Exception:  # noqa: BLE001
             update_and_build = FonteDesatualizada = None
         if update_and_build is not None:
-            antes = len(d.pessoas)
             try:
                 conv, contr, extras, pessoas = update_and_build(d.pessoas)
                 d.convocacoes, d.contratacoes = conv, contr
                 d.extras = extras or {}
                 d.pessoas = pessoas
-                if len(pessoas) != antes:
-                    print(f"[coletor] colapso pessoa/opcao: {antes} -> "
-                          f"{len(pessoas)} (mesma pessoa listada 2x na mesma opcao)")
             except FonteDesatualizada as e:
                 # A fonte devolveu uma geracao ANTIGA (cache velho). Descartamos a
                 # coleta inteira; collect.py nao regrava nada.

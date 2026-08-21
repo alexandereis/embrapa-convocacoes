@@ -50,6 +50,10 @@ class TimelineTestCase(unittest.TestCase):
         """Uma coleta. Devolve os `extras` (onde vivem as mudancas)."""
         return timeline.update_and_build(pessoas)[2]
 
+    def publicar(self, pessoas):
+        """Uma coleta. Devolve as linhas que vao para o site."""
+        return timeline.update_and_build(pessoas)[3]
+
     def estado(self):
         with open(timeline.STATE_PATH, encoding="utf-8") as f:
             return json.load(f)
@@ -149,8 +153,10 @@ class TestRegressaoIsolada(TimelineTestCase):
 
 
 class TestDedupePessoas(TimelineTestCase):
-    """Uma convocacao = uma vaga na fila = opcao + colocacao. Colocacao
-    diferente e chamada diferente, mesmo na mesma opcao e mesma pessoa."""
+    """O painel PUBLICA todas as linhas da fonte (o total bate com o oficial).
+    Ja o HISTORICO e ancorado na vaga -- opcao + colocacao + nome -- que e
+    estavel: a lotacao muda quando a pessoa escolhe a localidade, e por isso
+    nao pode entrar na chave. Colocacao diferente = chamada diferente."""
 
     def test_mesma_pessoa_mesma_opcao_em_duas_colocacoes_sao_duas_convocacoes(self):
         """Chamada pela cota e, depois, pela ampla concorrencia. Provado no git:
@@ -164,13 +170,27 @@ class TestDedupePessoas(TimelineTestCase):
                   pessoa("ABIAS", "Contratado", opcao="40001749")]
         self.assertEqual(len(timeline.dedupe_pessoas(linhas)), 2)
 
-    def test_mesma_colocacao_em_duas_lotacoes_conta_uma_vez(self):
-        """Mesma vaga na fila listada em duas lotacoes (remanejamento). Uma so."""
+    def test_publica_todas_as_linhas_da_fonte(self):
+        """O painel espelha a contagem OFICIAL: a mesma vaga oferecida em duas
+        cidades sao duas chamadas na tabela da EMBRAPA, e contam as duas."""
         linhas = [pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
                          unidade="CPAF/RR - Roraima", lotacao="Boa Vista"),
                   pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",
                          unidade="CPAF/RO - Rondonia", lotacao="Porto Velho")]
-        self.assertEqual(len(timeline.dedupe_pessoas(linhas)), 1)
+        self.assertEqual(len(self.publicar(linhas)), 2)
+
+    def test_status_segurado_vale_para_todas_as_linhas_da_vaga(self):
+        """A vaga e a ancora do historico: quando o status confiavel e mantido,
+        ele vale para as duas linhas dela -- senao o painel se contradiz."""
+        def duas(status):
+            return [pessoa("EDIVANIO", status, opcao="40001565", colocacao="1o PCD",
+                           unidade="CPAF/RR - Roraima"),
+                    pessoa("EDIVANIO", status, opcao="40001565", colocacao="1o PCD",
+                           unidade="CPAF/RO - Rondonia")]
+        self.coletar(duas("Contratado") + [pessoa("BIA", "Contratado")])
+        pub = self.publicar(duas("Aceitou") + [pessoa("BIA", "Contratado")])
+        self.assertEqual([p["status"] for p in pub if p["nome"] == "EDIVANIO"],
+                         ["Contratado", "Contratado"])
 
     def test_colapso_prefere_a_linha_com_lotacao_conhecida(self):
         linhas = [pessoa("EDIVANIO", "Desistente", opcao="40001565", colocacao="1o PCD",

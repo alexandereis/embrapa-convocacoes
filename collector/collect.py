@@ -43,6 +43,14 @@ def main():
     print(f"[coletor] brutos -> {len(raw.pessoas)} convocados, "
           f"{len(raw.opcoes)} opcoes, {len(raw.convocacoes)} eventos de convocacao")
 
+    if raw.fonte_desatualizada:
+        # A fonte oficial as vezes serve uma geracao ANTIGA do conjunto (cache).
+        # Aceitar isso enchia o painel de mudancas contraditorias da mesma
+        # pessoa. Descartamos a coleta inteira; a proxima reavalia.
+        print(f"[coletor] fonte devolveu GERACAO ANTIGA ({raw.fonte_desatualizada})"
+              " -> coleta descartada, data.json mantido.")
+        return
+
     if not raw.pessoas or not raw.opcoes:
         print("[coletor] ERRO: dados brutos incompletos, abortando sem sobrescrever.")
         sys.exit(1)

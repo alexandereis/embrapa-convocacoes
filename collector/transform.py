@@ -226,6 +226,14 @@ def build(raw):
     media_mm10 = velocity[-1]["mm10"] if velocity else 0
     hoje = datetime.now(_BR).date().isoformat()
 
+    # Quantas convocacoes CADA pessoa tem. 17 pessoas foram convocadas em mais
+    # de uma OPCAO (cargos/areas diferentes) e podem estar, por exemplo,
+    # Desistente numa e Contratada noutra. Sao duas convocacoes reais, nao
+    # duplicata -- o site marca a linha para o leitor nao achar que e erro.
+    convs_por_pessoa = defaultdict(int)
+    for p in pessoas:
+        convs_por_pessoa[timeline.norm_nome(p["nome"])] += 1
+
     changed_at = ex.get("changed_at") or {}
     # "Convocados hoje": novas convocacoes (novo=True) datadas de hoje, pelo
     # MESMO diario que alimenta a velocidade -> KPI e grafico batem.
@@ -272,8 +280,9 @@ def build(raw):
                      "cargo": p.get("cargo", ""), "cota": _cota(p["colocacao"]),
                      "status": p["status"], "unidade": p["unidade"] or "Nao informada",
                      "lotacao": p["lotacao"],
+                     "convs": convs_por_pessoa[timeline.norm_nome(p["nome"])],
                      "alterado_em": changed_at.get(
-                         timeline.norm_key(p["opcao"], p["colocacao"], p["nome"]), "")}
+                         timeline.norm_key(p["opcao"], p["nome"]), "")}
                     for p in pessoas],
         "aceites_pendentes": aceites,
         "remaining_days": [{"cargo": "ALL",

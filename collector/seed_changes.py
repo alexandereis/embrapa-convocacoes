@@ -52,7 +52,7 @@ def _chaves_oficiais():
         data = json.load(f)
     keys = set()
     for p in data.get("pessoas", []):
-        keys.add(norm_key(p.get("opcao", ""), p.get("col", ""), p.get("nome", "")))
+        keys.add(norm_key(p.get("opcao", ""), p.get("nome", "")))
     return keys
 
 
@@ -80,7 +80,7 @@ def main():
     descartados = 0
 
     for dt, r in eventos:
-        key = norm_key(r.get("OPÇÃO", ""), r.get("COLOCAÇÃO", ""), r.get("NOME", ""))
+        key = norm_key(r.get("OPÇÃO", ""), r.get("NOME", ""))
         # SALVAGUARDA: ignora quem nao esta na fonte oficial (anti-fantasma).
         if key not in oficiais:
             descartados += 1

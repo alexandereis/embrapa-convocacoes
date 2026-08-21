@@ -16,6 +16,9 @@ class RawData:
     convocacoes: list = field(default_factory=list)
     contratacoes: list = field(default_factory=list)
     extras: dict = field(default_factory=dict)
+    # Preenchido quando a fonte devolveu uma GERACAO ANTIGA do conjunto (cache
+    # velho): traz o motivo e manda o coletor descartar a coleta inteira.
+    fonte_desatualizada: str = ""
 
 
 class BaseExtractor:

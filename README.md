@@ -56,6 +56,20 @@ A coleta roda automaticamente ao longo do dia.
 > "aguardando escolha de localidade", exatamente como no painel oficial — e por
 > isso não entram no mapa por estado até definirem a lotação.
 
+Duas coisas o painel trata de propósito de forma diferente da tabela bruta:
+
+- **Uma convocação por pessoa em cada opção.** A fonte às vezes lista a mesma
+  pessoa duas vezes na mesma opção (uma linha pela cota, outra pela ampla
+  concorrência, ou duas lotações). É a mesma chamada, então ela conta uma vez só.
+  Quem foi convocado em **opções diferentes** continua aparecendo uma vez em cada
+  — são convocações distintas, e por isso podem ter situações diferentes. Nesses
+  casos o nome vem marcado com "N opções", para ficar claro que não é repetição.
+- **Leitura desatualizada da fonte é descartada.** O painel oficial de vez em
+  quando devolve uma versão antiga dos dados (cache), o que faria pessoas
+  "voltarem" de contratadas para aceitas e depois avançarem de novo. Quando a
+  coleta vem andando para trás, ela é ignorada e a anterior é mantida — a
+  situação de cada pessoa só muda quando a fonte confirma.
+
 ## Aviso importante
 
 Este é um painel **independente** de acompanhamento, **não é um canal oficial da

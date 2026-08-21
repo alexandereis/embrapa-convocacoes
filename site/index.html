@@ -186,6 +186,12 @@ tbody tr:last-child td{border-bottom:none}
 .empty{padding:40px;text-align:center;color:var(--text-faint)}
 .pend{font-size:12px;font-style:italic;color:var(--text-faint);opacity:.85}
 .mut{color:var(--text-faint);font-size:12px}
+/* marca quem foi convocado em mais de uma OPCAO: duas convocacoes reais, com
+   situacoes que podem diferir — nao e a mesma linha repetida. */
+.multi{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:99px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;vertical-align:1px;
+  color:var(--text-faint);background:var(--surface-3);border:1px solid var(--border);
+  cursor:help;white-space:nowrap}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:200;
   background:var(--surface-2);border:1px solid var(--green);color:var(--text);
   padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;
@@ -597,6 +603,7 @@ function renderMudancas(){
   if(!ch.length){el.innerHTML='<div class="empty">Sem mudanças registradas ainda. A partir de agora, <b>qualquer mudança de situação</b> (convocação, aceite, contratação, desistência…) aparece aqui com data e hora.</div>';return;}
   const groups={}; ch.forEach(c=>{(groups[c.date]=groups[c.date]||[]).push(c);});
   const dias=Object.keys(groups).sort().reverse();
+  const convs={}; (DATA.pessoas||[]).forEach(p=>{convs[p.nome]=p.convs||1;});
   el.innerHTML=dias.map(d=>{
     const items=groups[d];
     const rows=items.map(i=>{
@@ -604,7 +611,7 @@ function renderMudancas(){
       const loc=(!i.unidade)?`<span class="pend">aguardando localidade</span>`:i.unidade;
       const hora=i.ts?i.ts.slice(11,16):'';
       const trans=i.de?`<span class="mut">era ${i.de}</span>`:`<span class="mut">novo</span>`;
-      return `<tr><td><span class="st" style="--c:${cor}">${i.para}</span></td><td>${i.nome}</td>
+      return `<tr><td><span class="st" style="--c:${cor}">${i.para}</span></td><td>${i.nome}${multiTag(convs[i.nome])}</td>
         <td>${trans}</td><td>${i.cargo||''}</td><td class="mono">${i.opcao}</td><td>${loc}</td>
         <td class="mono mut">${hora}</td></tr>`;}).join('');
     return `<div class="daygroup"><div class="dayhead">${_diaLabel(d)}<span class="daycount">${items.length} mudança(s)</span></div>
@@ -800,6 +807,13 @@ function renderOpTable(){
 }
 
 /* ============ TABELA DE PESSOAS ============ */
+/* Algumas pessoas foram convocadas em MAIS DE UMA opção (cargos/áreas
+   diferentes) e podem estar, por exemplo, desistentes numa e contratadas
+   noutra. São duas convocações reais — a marca evita que o leitor ache que a
+   linha está duplicada ou que o status está errado. */
+function multiTag(n){
+  return n>1?`<span class="multi" title="Esta pessoa foi convocada em ${n} opções diferentes. Cada linha é uma convocação, com situação própria.">${n} opções</span>`:'';
+}
 let pSort={k:'status',dir:1};
 function fillPStatus(){
   const sts=[...new Set(DATA.pessoas.map(p=>p.status))].sort();
@@ -822,7 +836,7 @@ function renderPTable(){
     const und=semLoc?`<span class="pend">aguardando escolha de localidade</span>`:p.unidade;
     const lot=semLoc?'':(p.lotacao||'—');
     const alt=p.alterado_em?`<span title="quando detectamos a última mudança">${p.alterado_em.slice(8,10)}/${p.alterado_em.slice(5,7)} ${p.alterado_em.slice(11,16)}</span>`:'—';
-    return `<tr><td class="mono">${p.col}</td><td>${p.nome}</td><td class="mono">${p.opcao}</td>
+    return `<tr><td class="mono">${p.col}</td><td>${p.nome}${multiTag(p.convs)}</td><td class="mono">${p.opcao}</td>
       <td><span class="st" style="--c:${c}">${p.status}</span></td>
       <td>${und}</td><td>${lot}</td><td class="mono mut">${alt}</td></tr>`;}).join('')
     : '<tr><td colspan="7" class="empty">Ninguém encontrado.</td></tr>';

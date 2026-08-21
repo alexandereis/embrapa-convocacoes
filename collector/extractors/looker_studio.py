@@ -348,11 +348,9 @@ class LookerStudioExtractor(BaseExtractor):
             if len(rows) < req_rows:  # ultima pagina (servidor devolveu menos)
                 break
 
-        # Remove apenas linhas EXATAMENTE identicas (artefato de paginacao: se a
-        # fonte muda durante a coleta multi-pagina, uma linha de fronteira pode
-        # ser lida 2x). NAO toca em linhas legitimamente distintas (ex.: mesma
-        # pessoa em 2 lotacoes), que o painel OFICIAL tambem lista separadas ->
-        # nosso total espelha a tabela oficial 1:1.
+        # Remove linhas EXATAMENTE identicas (artefato de paginacao: se a fonte
+        # muda durante a coleta multi-pagina, uma linha de fronteira pode ser
+        # lida 2x).
         vistos, unicas = set(), []
         for p in d.pessoas:
             chave = (p["opcao"], p["colocacao"], p["nome"], p["status"],
@@ -365,6 +363,37 @@ class LookerStudioExtractor(BaseExtractor):
             print(f"[coletor] dedup: {len(d.pessoas)} -> {len(unicas)} "
                   f"(removidas {len(d.pessoas) - len(unicas)} linhas IDENTICAS)")
         d.pessoas = unicas
+
+        # ---- linha do tempo + status confiavel (ANTES de contar) ----
+        # A tabela oficial nao traz datas; timeline.py mantem a serie (curva
+        # historica semeada uma vez + snapshots por coleta) e devolve as pessoas
+        # ja COLAPSADAS -- a fonte lista a mesma pessoa na mesma opcao em mais de
+        # uma linha (cota + ampla concorrencia, ou duas lotacoes) e isso e UMA
+        # convocacao so. Por isso o colapso vem antes do resumo por opcao: contar
+        # duas vezes inflava convocados, desistencias e o mapa.
+        # Defensivo: se algo falhar, a coleta continua e a timeline fica como
+        # esta -- excecao: FonteDesatualizada aborta a coleta inteira.
+        try:
+            from timeline import update_and_build, FonteDesatualizada
+        except Exception:  # noqa: BLE001
+            update_and_build = FonteDesatualizada = None
+        if update_and_build is not None:
+            antes = len(d.pessoas)
+            try:
+                conv, contr, extras, pessoas = update_and_build(d.pessoas)
+                d.convocacoes, d.contratacoes = conv, contr
+                d.extras = extras or {}
+                d.pessoas = pessoas
+                if len(pessoas) != antes:
+                    print(f"[coletor] colapso pessoa/opcao: {antes} -> "
+                          f"{len(pessoas)} (mesma pessoa listada 2x na mesma opcao)")
+            except FonteDesatualizada as e:
+                # A fonte devolveu uma geracao ANTIGA (cache velho). Descartamos a
+                # coleta inteira; collect.py nao regrava nada.
+                d.fonte_desatualizada = str(e)
+                return d
+            except Exception:  # noqa: BLE001
+                pass
 
         # ---- resumo por opcao: RECALCULADO dos status oficiais + catalogo ----
         agg = defaultdict(lambda: {"convocados": 0, "contratados": 0,
@@ -407,18 +436,5 @@ class LookerStudioExtractor(BaseExtractor):
                 "convocados": a["convocados"],
                 "desistencias": a["desistencias"],
             })
-
-        # ---- linha do tempo: seed historico + acumulo proprio ----
-        # A tabela oficial nao traz datas. timeline.py mantem a serie (curva
-        # historica semeada uma vez + snapshots por coleta). Defensivo: se algo
-        # falhar, a coleta continua, so a timeline fica como estiver.
-        try:
-            from timeline import update_and_build
-            conv, contr, extras = update_and_build(d.pessoas)
-            d.convocacoes = conv
-            d.contratacoes = contr
-            d.extras = extras or {}
-        except Exception:  # noqa: BLE001
-            pass
 
         return d

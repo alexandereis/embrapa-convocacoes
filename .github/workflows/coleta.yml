@@ -44,6 +44,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      # So em mudanca de codigo/disparo manual: uma coleta agendada nunca pode
+      # ficar bloqueada por teste -- o painel ficaria velho por isso.
+      - name: Testes do coletor
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: python collector/test_timeline.py
+
       - name: Coletar dados (recalcula metricas)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # eleva o rate limit da API
@@ -57,10 +63,17 @@ jobs:
           # data.json + estado da timeline (a serie temporal propria cresce a
           # cada coleta). O seed e o catalogo sao versionados manualmente.
           git add site/data/data.json site/data/timeline_state.json 2>/dev/null || true
-          CHANGED=false
+          CHANGED=false; SO_ESTADO=false
           if git diff --cached --quiet; then
             echo "Sem mudancas nos dados."
           else
+            # So o data.json muda o que o visitante ve. O timeline_state.json
+            # pode mudar sozinho (ex.: contador da guarda de fonte desatualizada)
+            # -- isso a gente commita, mas nao republica o site a toa.
+            if git diff --cached --quiet -- site/data/data.json; then
+              echo "Só o estado interno mudou -> commit sem deploy."
+              SO_ESTADO=true
+            fi
             # [skip ci] impede que este commit re-dispare o workflow.
             git commit -m "chore(dados): atualizacao automatica $(date -u +'%Y-%m-%d %H:%M UTC') [skip ci]"
             # push resiliente: se o remoto avancou, rebaseia e tenta de novo.
@@ -74,7 +87,7 @@ jobs:
             if [ "$PUSHED" != "true" ]; then
               echo "Falha ao empurrar apos varias tentativas."; exit 1
             fi
-            CHANGED=true
+            [ "$SO_ESTADO" = "true" ] || CHANGED=true
           fi
           # So publica no Pages quando ha novidade real (evita deploys de
           # conteudo identico, que causam "Deployment failed, try again later"),

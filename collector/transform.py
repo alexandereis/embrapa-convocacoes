@@ -4,6 +4,7 @@ Independente da fonte: recebe um RawData e devolve o data.json final.
 Aqui mora a inteligencia do coletor -- nada vem "pronto" da fonte, exceto
 os poucos campos que exigem historico diario fino (complementados via extras).
 """
+import re
 import unicodedata
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta, timezone
@@ -50,6 +51,11 @@ def _cota(colocacao):
         return "PPP"
     if "PCD" in s or "PNE" in s:
         return "PCD"
+    # "PP" solto e "PPP" com um caractere perdido na digitacao da fonte -- nao
+    # existe cota "PP" no edital. Sem isso a pessoa ficava sozinha num balde
+    # "Outros" no grafico de cotas. O \b evita casar com o proprio "PPP".
+    if re.search(r"\bPP\b", s):
+        return "PPP"
     if "AC" in s:
         return "AC"
     return "Outros"

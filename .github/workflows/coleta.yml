@@ -48,7 +48,7 @@ jobs:
       # ficar bloqueada por teste -- o painel ficaria velho por isso.
       - name: Testes do coletor
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: python collector/test_timeline.py
+        run: python -m unittest discover -s collector -t collector -p "test_*.py" -v
 
       - name: Coletar dados (recalcula metricas)
         env:

@@ -443,6 +443,19 @@ footer .fl{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-c
 let DATA = null;
 const C = {green:'#3ee06f',greenDeep:'#0f9e4a',wheat:'#e9b24c',cyan:'#48d4dd',blue:'#6ea8fe',coral:'#ff6f6f',violet:'#bd9bf2',gray:'#7b8a7c',grid:'rgba(180,220,180,.08)',text:'#90a892'};
 const STATUS_COLOR={'Contratado':C.green,'Aceitou':C.cyan,'Em contratação':C.wheat,'Convocado':C.blue,'Aguardando aceite':C.blue,'Desistente':C.coral,'Desclassificado':C.gray,'Não se manifestou':C.violet,'Nao se manifestou':C.violet};
+// A fonte usa variantes ("Aceitou subjudice", "Contratado subjudice"). Sem
+// esse fallback elas caíam todas em cinza, como se fossem desclassificadas.
+function corStatus(st){
+  if(STATUS_COLOR[st])return STATUS_COLOR[st];
+  const t=(st||'').toLowerCase();
+  if(t.includes('contratado'))return C.green;
+  if(t.includes('aceitou'))return C.cyan;
+  if(t.includes('convocad'))return C.blue;
+  if(t.includes('desisten'))return C.coral;
+  if(t.includes('desclassific'))return C.gray;
+  if(t.includes('manifest'))return C.violet;
+  return C.gray;
+}
 const CARGO_COLOR={'Pesquisador':C.green,'Analista':C.cyan,'Técnico':C.wheat,'Tecnico':C.wheat,'Assistente':C.violet};
 const fmt=n=>(n==null?'—':Number(n).toLocaleString('pt-BR'));
 async function loadData(){const r=await fetch('./data/data.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
@@ -519,7 +532,7 @@ function renderKPIs(){
   const k=[
     {l:'Total convocados',num:g.total_convocados,s:`de ${fmt(totalVagas)} vagas previstas`,i:'users',c:C.blue,d:dConv},
     {l:'Contratados',num:g.total_contratados,s:`<b>${pct.toFixed(1)}%</b> das vagas preenchidas`,i:'check',c:C.green,d:dContr},
-    {l:'Aguardando / aceitaram',num:g.total_aceitou,s:'em processo de contratação',i:'hand',c:C.cyan},
+    {l:'Aguardando / aceitaram',num:g.total_em_processo,s:'em processo de contratação',i:'hand',c:C.cyan},
     {l:'Taxa de desistência',v:g.pct_desistencias+'%',s:'dos convocados desistiram',i:'out',c:C.coral},
     {l:'Vagas em aberto',num:vagasAbertas,s:'ainda a preencher',i:'target',c:C.wheat},
     {l:'Aceite médio',v:(g.avg_days_convocado_to_aceitou!=null?g.avg_days_convocado_to_aceitou+' d':'—'),s:'da convocação ao aceite',i:'clock',c:C.violet},
@@ -540,7 +553,7 @@ function renderFunnel(){
   const g=DATA.general;
   const totalVagas=DATA.por_cargo.reduce((s,c)=>s+c.total,0);
   mk('funnelChart',{type:'bar',data:{labels:['Vagas previstas','Convocados','Aceitaram/em contrat.','Contratados'],
-    datasets:[{data:[totalVagas,g.total_convocados,g.total_aceitou+g.total_contratados,g.total_contratados],
+    datasets:[{data:[totalVagas,g.total_convocados,g.total_em_processo+g.total_contratados,g.total_contratados],
       backgroundColor:[C.gray,C.blue,C.cyan,C.green],borderRadius:7,barThickness:30}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{tooltip:{callbacks:{label:c=>fmt(c.raw)+' pessoas'}}},
@@ -549,8 +562,13 @@ function renderFunnel(){
 
 function renderStatus(){
   const ps=DATA.por_status;
-  const order=['Contratado','Aceitou','Convocado','Não se manifestou','Desclassificado','Desistente'];
-  const labels=order.filter(s=>ps[s]), vals=labels.map(s=>ps[s]), cols=labels.map(s=>STATUS_COLOR[s]||C.gray);
+  const order=['Contratado','Aceitou','Convocado','Reconvocado','Não se manifestou','Desclassificado','Desistente'];
+  // Situações fora da lista (as variantes "subjudice", por exemplo) entram no
+  // fim em vez de sumir do gráfico — senão os percentuais saem de uma soma
+  // menor que o total de convocados.
+  const extra=Object.keys(ps).filter(s=>!order.includes(s)).sort((a,b)=>ps[b]-ps[a]);
+  const labels=[...order,...extra].filter(s=>ps[s]);
+  const vals=labels.map(s=>ps[s]), cols=labels.map(s=>corStatus(s));
   mk('statusChart',{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:cols,borderColor:'#0b120c',borderWidth:3,hoverOffset:6}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
       plugins:{tooltip:{callbacks:{label:c=>`${c.label}: ${fmt(c.raw)}`}}}}});
@@ -607,7 +625,7 @@ function renderMudancas(){
   el.innerHTML=dias.map(d=>{
     const items=groups[d];
     const rows=items.map(i=>{
-      const cor=STATUS_COLOR[i.para]||C.gray;
+      const cor=corStatus(i.para);
       const loc=(!i.unidade)?`<span class="pend">aguardando localidade</span>`:i.unidade;
       const hora=i.ts?i.ts.slice(11,16):'';
       const trans=i.de?`<span class="mut">era ${i.de}</span>`:`<span class="mut">novo</span>`;
@@ -699,11 +717,15 @@ async function renderMapa(){
     if(!tt){tt=document.createElementNS('http://www.w3.org/2000/svg','title');path.appendChild(tt);}
     tt.textContent = e? `${e.estado}: ${e.total} convocado(s) · ${e.contratados} contratado(s)` : `${uf}: sem convocados`;
   });
-  const semLoc=(DATA.pessoas||[]).filter(p=>!p.unidade||p.unidade==='Não informada'||p.unidade==='Nao informada').length;
+  // Conta quem REALMENTE ficou fora do mapa. Antes contava quem estava sem
+  // unidade, e havia gente com unidade mas sem cidade — a legenda não fechava
+  // com o mapa.
+  const noMapa=est.reduce((s,e)=>s+e.total,0);
+  const semLoc=Math.max(0,(DATA.pessoas||[]).length-noMapa);
   const top=est[0], leg=document.getElementById('mapLegend');
   if(leg)leg.innerHTML='<span class="legbar"></span><span>menos</span><span style="flex:1"></span><span>mais convocados</span>'
     +(top?` &nbsp;·&nbsp; líder: <b>${top.estado}</b> (${top.total})`:'')
-    +(semLoc?` &nbsp;·&nbsp; ${fmt(semLoc)} aguardando localidade`:'');
+    +(semLoc?` &nbsp;·&nbsp; ${fmt(semLoc)} sem localidade definida`:'');
 }
 function renderUnidades(){
   const u=DATA.por_unidade.filter(x=>x.unidade!=='Não informada'), max=u[0]?.total||1;
@@ -832,7 +854,7 @@ function renderPTable(){
   rows.sort((a,b)=>{let x=(a[pSort.k]||'').toString().toLowerCase(),y=(b[pSort.k]||'').toString().toLowerCase();return x<y?-pSort.dir:x>y?pSort.dir:0;});
   const total=rows.length; rows=rows.slice(0,lim);
   document.getElementById('pBody').innerHTML= rows.length? rows.map(p=>{
-    const c=STATUS_COLOR[p.status]||C.gray;
+    const c=corStatus(p.status);
     const semLoc=!p.unidade||p.unidade==='Não informada'||p.unidade==='Nao informada';
     const und=semLoc?`<span class="pend">aguardando escolha de localidade</span>`:p.unidade;
     const lot=semLoc?'':(p.lotacao||'—');
@@ -970,7 +992,7 @@ function notifyChange(d){
 function _dataSig(o){
   if(!o||!o.general)return '';
   const g=o.general;
-  return [g.total_convocados,g.total_contratados,g.total_aceitou,g.pct_desistencias,
+  return [g.total_convocados,g.total_contratados,g.total_em_processo,g.pct_desistencias,
           g.fonte_ultima_mudanca,(o.mudancas||[]).length].join('|');
 }
 // auto-atualizacao (sem F5): re-renderiza tudo SO se o dado mudou; senao so o selo

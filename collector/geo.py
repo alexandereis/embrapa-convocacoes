@@ -38,15 +38,18 @@ CITY_UF = {
     "santo antonio de goias": "GO", "santo antonio de gioas": "GO", "goiania": "GO",
     "palmas": "TO",
     "colombo": "PR", "londrina": "PR", "ponta grossa": "PR",
-    "campo grande": "MS", "dourados": "MS", "corumba": "MS",
+    "francisco beltrao": "PR",
+    "campo grande": "MS", "dourados": "MS", "dourado": "MS",   # "Dourado" = grafia da fonte
+    "corumba": "MS",
     "coronel pacheco": "MG", "caronel pacheco": "MG", "juiz de fora": "MG",
     "nova porteirinha": "MG", "sete lagoas": "MG", "uberaba": "MG",
     "balsas": "MA", "sao luis": "MA", "sao luiz": "MA",
     "recife": "PE", "petrolina": "PE",
-    "concordia": "SC",
+    "concordia": "SC", "concorida": "SC",   # "Concorida" = grafia da fonte
     "passo fundo": "RS", "bento goncalves": "RS", "pelotas": "RS", "bage": "RS",
+    "alegrete": "RS",
     "manaus": "AM",
-    "rio branco": "AC",
+    "rio branco": "AC", "cruzeiro do sul": "AC",
     "macapa": "AP",
     "ouro preto d oeste": "RO", "ouro preto do oeste": "RO",
     "porto velho": "RO", "vilhena": "RO",
@@ -77,7 +80,9 @@ def por_estado(pessoas):
         a = agg.setdefault(uf, {"uf": uf, "estado": UF_NOME[uf],
                                 "total": 0, "contratados": 0})
         a["total"] += 1
-        if p.get("status") == "Contratado":
+        # por palavra-chave -> inclui "Contratado subjudice", igual ao total
+        # do topo do painel. Com igualdade exata o mapa ficava desencontrado.
+        if "contratado" in (p.get("status") or "").lower():
             a["contratados"] += 1
     lista = sorted(agg.values(), key=lambda x: -x["total"])
     info = {"sem_estado": nd, "nao_mapeadas": nao_mapeadas}

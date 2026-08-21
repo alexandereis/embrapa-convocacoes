@@ -282,5 +282,57 @@ class TestSerieNaoDuplica(TimelineTestCase):
         self.assertEqual(len(self.estado()["events"]["convocacoes"]), 1)
 
 
+class TestBaldeDeStatus(unittest.TestCase):
+    """Os status "subjudice" existem na fonte e sumiam do resumo por opcao,
+    porque a comparacao era exata. Uma pessoa 'Aceitou subjudice' ficava fora de
+    contratados, em_contratacao, aguardando E desistencias -- a vaga dela
+    aparecia como 'em aberto'."""
+
+    def test_contratado_subjudice_conta_como_contratado(self):
+        self.assertEqual(timeline.balde_status("Contratado subjudice"), "contratados")
+
+    def test_aceitou_subjudice_conta_como_em_contratacao(self):
+        self.assertEqual(timeline.balde_status("Aceitou subjudice"), "em_contratacao")
+
+    def test_convocado_subjudice_conta_como_aguardando(self):
+        self.assertEqual(timeline.balde_status("Convocado subjudice"), "aguardando")
+
+    def test_reconvocado_conta_como_aguardando(self):
+        self.assertEqual(timeline.balde_status("Reconvocado"), "aguardando")
+
+    def test_saidas_contam_como_desistencia(self):
+        for s in ("Desistente", "Desclassificado", "Não se manifestou"):
+            self.assertEqual(timeline.balde_status(s), "desistencias", s)
+
+    def test_status_desconhecido_nao_e_chutado(self):
+        """Melhor devolver None (e o coletor avisar) do que somar no balde errado."""
+        self.assertIsNone(timeline.balde_status("Situacao Nova Qualquer"))
+
+
+class TestMediaDeAceite(unittest.TestCase):
+    """O KPI 'Aceite medio' vinha congelado do seed. Agora sai do diario."""
+
+    def _ev(self, nome, para, ts, novo=False):
+        return {"nome": nome, "opcao": "1", "col": "1o AC", "para": para,
+                "ts": ts, "novo": novo}
+
+    def test_calcula_dias_entre_convocacao_e_aceite(self):
+        ch = [self._ev("ANA", "Convocado", "2026-01-01 00:00", novo=True),
+              self._ev("ANA", "Aceitou", "2026-01-05 00:00")]
+        self.assertEqual(timeline.media_aceite(ch, minimo=1), 4.0)
+
+    def test_ignora_quem_ainda_nao_aceitou(self):
+        ch = [self._ev("ANA", "Convocado", "2026-01-01 00:00", novo=True),
+              self._ev("ANA", "Aceitou", "2026-01-03 00:00"),
+              self._ev("BIA", "Convocado", "2026-01-01 00:00", novo=True)]
+        self.assertEqual(timeline.media_aceite(ch, minimo=1), 2.0)
+
+    def test_sem_amostra_suficiente_devolve_none(self):
+        """Ai o painel mantem o valor do seed em vez de mostrar ruido."""
+        ch = [self._ev("ANA", "Convocado", "2026-01-01 00:00", novo=True),
+              self._ev("ANA", "Aceitou", "2026-01-03 00:00")]
+        self.assertIsNone(timeline.media_aceite(ch, minimo=5))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

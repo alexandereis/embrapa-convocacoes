@@ -4,6 +4,7 @@ Independente da fonte: recebe um RawData e devolve o data.json final.
 Aqui mora a inteligencia do coletor -- nada vem "pronto" da fonte, exceto
 os poucos campos que exigem historico diario fino (complementados via extras).
 """
+import unicodedata
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta, timezone
 import geo
@@ -29,6 +30,17 @@ def _business_days(d0, d1):
         if cur.weekday() < 5:
             n += 1
     return n
+
+
+# O catalogo do edital escreve "Técnico" com acento; a ordem era procurada por
+# "Tecnico" e nao achava, entao o cargo caia para o fim da lista (depois de
+# Assistente) tanto nos cards quanto no quadro de desistencias.
+_ORDEM_CARGO = {"pesquisador": 0, "analista": 1, "tecnico": 2, "assistente": 3}
+
+
+def _ordem_cargo(cargo):
+    c = unicodedata.normalize("NFKD", str(cargo or "")).encode("ascii", "ignore")
+    return _ORDEM_CARGO.get(c.decode().strip().lower(), 9)
 
 
 def _cota(colocacao):
@@ -107,8 +119,7 @@ def build(raw):
             "pct_preenchido": round((v["contratados"] + v["em_contratacao"]) / total * 100, 2),
             "vagas_abertas": max(0, v["total"] - v["contratados"] - v["em_contratacao"]),
         })
-    rank = {"Pesquisador": 0, "Analista": 1, "Tecnico": 2, "Assistente": 3}
-    por_cargo.sort(key=lambda x: rank.get(x["cargo"], 9))
+    por_cargo.sort(key=lambda x: _ordem_cargo(x["cargo"]))
 
     # ---------- desistencias por cargo ----------
     desist = [{"cargo": "Todos",
@@ -122,7 +133,7 @@ def build(raw):
     for d in desist:
         conv = d["convocacoes"] or 1
         d["pct"] = round(d["desistencias"] / conv * 100, 2)
-    desist.sort(key=lambda x: (x["cargo"] != "Todos", rank.get(x["cargo"], 9)))
+    desist.sort(key=lambda x: (x["cargo"] != "Todos", _ordem_cargo(x["cargo"])))
 
     # ---------- distribuicao de opcoes por nº de candidatos/convocados ----------
     buckets = OrderedDict([("1-5", 0), ("6-10", 0), ("11-15", 0), ("16-20", 0), (">20", 0)])
@@ -186,7 +197,9 @@ def build(raw):
     for p in pessoas:
         u = p["unidade"] or "Nao informada"
         pu[u]["total"] += 1
-        if p["status"] == "Contratado":
+        # por palavra-chave -> inclui "Contratado subjudice", igual ao KPI do
+        # topo. Com igualdade exata o ranking ficava 1 a menos que o total.
+        if timeline.balde_status(p["status"]) == "contratados":
             pu[u]["contratados"] += 1
     por_unidade = sorted(({"unidade": k, **v} for k, v in pu.items()),
                          key=lambda x: -x["total"])
@@ -201,7 +214,7 @@ def build(raw):
     for p in pessoas:
         c = _cota(p["colocacao"])
         pc[c]["total"] += 1
-        if p["status"] == "Contratado":
+        if timeline.balde_status(p["status"]) == "contratados":
             pc[c]["contratados"] += 1
     ordem_cota = {"AC": 0, "PPP": 1, "PCD": 2, "Outros": 3}
     por_cota = sorted(({"cota": k, **v} for k, v in pc.items()),
@@ -212,8 +225,20 @@ def build(raw):
     total_convocados = sum(c["convocados"] for c in cg.values()) or len(pessoas)
     total_contratados = sum(v for k, v in por_status.items()
                             if "contratado" in k.lower())
-    total_aceitou = por_status.get("Aceitou", 0)
+    # "Em processo" = aceitou + aguarda aceite (com as variantes subjudice).
+    # Antes contava so o "Aceitou" exato, entao o KPI nao fechava com as vagas
+    # em aberto: 833 contratados + 50 + 254 desistencias dava 1.137 de 1.144.
+    total_em_processo = sum(n for st, n in por_status.items()
+                            if timeline.balde_status(st) in ("em_contratacao",
+                                                             "aguardando"))
     total_desist = sum(c["desistencias"] for c in cg.values())
+    # As tres pontas tem que somar o total: se a fonte criar um status novo que
+    # nao cai em balde nenhum, isso aparece aqui em vez de sumir calado.
+    _soma = total_contratados + total_em_processo + total_desist
+    if _soma != total_convocados:
+        print(f"[coletor] ATENCAO: contratados({total_contratados}) + em processo"
+              f"({total_em_processo}) + desistencias({total_desist}) = {_soma}, "
+              f"mas ha {total_convocados} convocados. Falta status em algum balde.")
 
     # Reconcilia as series temporais com os totais OFICIAIS: a fonte datada
     # (seed) e incompleta, entao escalamos a distribuicao para somar o total
@@ -252,7 +277,7 @@ def build(raw):
         "generated_ts": int(datetime.now().timestamp()),
         "business_days_elapsed": biz,
         "total_convocados": total_convocados,
-        "total_aceitou": total_aceitou,
+        "total_em_processo": total_em_processo,
         "total_contratados": total_contratados,
         "pct_desistencias": round(total_desist / (total_convocados or 1) * 100, 1),
         "convocados_hoje": convocados_hoje,

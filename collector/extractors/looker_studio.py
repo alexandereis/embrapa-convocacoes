@@ -20,6 +20,7 @@ import urllib.request
 from collections import defaultdict
 
 from .base import BaseExtractor, RawData
+from timeline import balde_status
 from config import (
     LOOKER_ENDPOINT,
     LOOKER_REPORT_ID,
@@ -77,11 +78,10 @@ TABLE_FIELDS = [
     ("_K_", "lotacao",   "qt_ge9totyxyd"),
 ]
 
-# Status oficiais observados -> buckets do resumo por opcao.
-STATUS_CONTRATADO = {"Contratado"}
-STATUS_EM_CONTRATACAO = {"Aceitou"}
-STATUS_AGUARDANDO = {"Convocado"}
-STATUS_DESISTENCIA = {"Desistente", "Desclassificado", "Não se manifestou"}
+# Em que balde do resumo cada status cai: timeline.balde_status(), por
+# palavra-chave. Antes a comparacao era exata e as variantes da fonte
+# ("Aceitou subjudice", "Convocado subjudice", "Reconvocado") nao caiam em
+# balde nenhum -- a vaga dessa gente aparecia como "em aberto".
 
 
 def _query_field(name, source):
@@ -394,20 +394,19 @@ class LookerStudioExtractor(BaseExtractor):
         agg = defaultdict(lambda: {"convocados": 0, "contratados": 0,
                                    "em_contratacao": 0, "aguardando": 0,
                                    "desistencias": 0})
+        desconhecidos = defaultdict(int)
         for p in d.pessoas:
             a = agg[p["opcao"]]
             a["convocados"] += 1  # estar na tabela = foi convocado
-            s = p["status"]
-            # "contratado" por palavra-chave -> inclui "Contratado subjudice"
-            # (contratacao especial, sob decisao judicial, mas contratacao).
-            if "contratado" in s.lower():
-                a["contratados"] += 1
-            elif s in STATUS_EM_CONTRATACAO:
-                a["em_contratacao"] += 1
-            elif s in STATUS_AGUARDANDO:
-                a["aguardando"] += 1
-            elif s in STATUS_DESISTENCIA:
-                a["desistencias"] += 1
+            balde = balde_status(p["status"])
+            if balde:
+                a[balde] += 1
+            else:
+                desconhecidos[p["status"]] += 1
+        if desconhecidos:
+            # Nao chutamos o balde: avisamos, para o status novo ser tratado.
+            print("[coletor] ATENCAO: status sem balde no resumo por opcao -> "
+                  + ", ".join(f"{k!r} x{v}" for k, v in desconhecidos.items()))
         zero = {"convocados": 0, "contratados": 0, "em_contratacao": 0,
                 "aguardando": 0, "desistencias": 0}
         # uniao: TODAS as opcoes do catalogo (mesmo as ainda sem convocacao)

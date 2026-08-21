@@ -126,6 +126,53 @@ def _rank(status):
     return 1
 
 
+# Baldes do resumo por opcao. Por PALAVRA-CHAVE, nao por igualdade: a fonte usa
+# variantes ("Aceitou subjudice", "Contratado subjudice", "Reconvocado") e, com
+# comparacao exata, essa gente sumia de TODAS as contagens -- a vaga aparecia
+# como "em aberto" mesmo com o processo andando.
+def balde_status(status):
+    """Em que balde do resumo por opcao esse status cai. None = desconhecido:
+    melhor o coletor avisar do que somar no lugar errado."""
+    s = (status or "").lower()
+    if "contratado" in s:
+        return "contratados"
+    if "aceitou" in s:
+        return "em_contratacao"
+    if "convocado" in s or "reconvocad" in s:
+        return "aguardando"
+    if "desisten" in s or "desclassific" in s or "manifest" in s:
+        return "desistencias"
+    return None
+
+
+def _ts(s):
+    try:
+        return datetime.strptime(s, "%Y-%m-%d %H:%M")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def media_aceite(changes, minimo=3):
+    """Media de dias entre a convocacao e o aceite, com base nas convocacoes que
+    acompanhamos do inicio ao fim. Devolve None quando a amostra e pequena
+    demais -- ai o painel mantem a media historica que veio do seed, em vez de
+    publicar ruido."""
+    convocado, dias = {}, []
+    for c in sorted(changes, key=lambda c: c.get("ts", "")):
+        k = (c.get("opcao", ""), c.get("col", ""), c.get("nome", ""))
+        para = (c.get("para", "") or "").lower()
+        t = _ts(c.get("ts", ""))
+        if t is None:
+            continue
+        if "convocado" in para or "reconvocad" in para:
+            convocado.setdefault(k, t)
+        elif "aceitou" in para and k in convocado:
+            dias.append((t - convocado.pop(k)).total_seconds() / 86400)
+    if len(dias) < minimo:
+        return None
+    return round(sum(dias) / len(dias), 1)
+
+
 def _e_suspeita(prev, novo, historico):
     """True quando a mudanca tem cara de leitura de GERACAO ANTIGA da fonte.
 
@@ -393,6 +440,11 @@ def update_and_build(pessoas):
             contr_dia[dt] = contr_dia.get(dt, 0) + 1
     extras["novos_por_dia"] = novos_dia
     extras["contratados_por_dia"] = contr_dia
+    # Aceite medio: sai do diario. So sobrescreve o valor historico do seed
+    # quando ja temos amostra propria suficiente.
+    media = media_aceite(changes)
+    if media is not None:
+        extras["avg_days_convocado_to_aceitou"] = media
 
     # Status segurado vale para TODAS as linhas daquela vaga -- senao o painel
     # mostraria a mesma vaga com duas situacoes. Copia: nao mexemos nos dicts

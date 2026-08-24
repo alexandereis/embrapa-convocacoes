@@ -42,7 +42,10 @@ foram preenchidas, qual o ritmo das chamadas. O painel transforma esse fluxo em
   situação e localidade de lotação.
 
 A página **se atualiza sozinha**: quando há novidade na fonte, ela se renova sem
-precisar apertar F5. Um indicador no topo mostra se a coleta está em dia.
+precisar apertar F5 — por isso não existe botão de atualizar. Um indicador no topo
+mostra se a coleta está em dia. E, com a sua permissão, o painel ainda **avisa por
+notificação do navegador** a cada nova convocação ou contratação, enquanto a aba
+estiver aberta.
 
 ## De onde vêm os dados
 

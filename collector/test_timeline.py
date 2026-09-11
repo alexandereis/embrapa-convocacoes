@@ -107,6 +107,65 @@ class TestGeracaoAntigaEmLote(TimelineTestCase):
         self.assertEqual(len(extras["changes"]), 33)
 
 
+class TestConjuntoQueEncolhe(TimelineTestCase):
+    """Guarda #3: linha que SOME da fonte e geracao antiga, nunca novidade.
+
+    A tabela de convocados so cresce -- quem desiste continua listado, com o
+    status mudado. Entao uma leitura menor que a ultima conhecida e cache velho.
+
+    Isso ficou caro em 11/09/2026: o ambiente do GitHub Actions passou dias
+    recebendo 1157 linhas enquanto a fonte ja servia 1169 para todo o resto. A
+    guarda de lote sozinha nao bastava: ela aceita o mesmo lote depois de
+    algumas leituras, e o cache velho insiste por horas -- tempo de sobra para
+    o painel apagar as 12 convocacoes mais novas e passar isso por "mudanca".
+    """
+
+    def test_pessoa_que_some_e_rejeitada(self):
+        self.coletar([pessoa("ANA", "Contratado"), pessoa("BIA", "Aceitou")])
+        with self.assertRaises(timeline.FonteDesatualizada):
+            self.coletar([pessoa("ANA", "Contratado")])
+
+    def test_sumico_nao_e_aceito_nem_repetido_a_exaustao(self):
+        """A diferenca para a guarda de lote: repetir NAO convence."""
+        self.coletar([pessoa("ANA", "Contratado"), pessoa("BIA", "Aceitou")])
+        menor = [pessoa("ANA", "Contratado")]
+        for _ in range(timeline._CONFIRMACOES_LOTE + 3):
+            with self.assertRaises(timeline.FonteDesatualizada):
+                self.coletar(menor)
+        self.assertEqual(len(self.estado()["people"]), 2,
+                         "o estado nao pode encolher por insistencia do cache")
+
+    def test_sumico_nao_altera_o_estado(self):
+        self.coletar([pessoa("ANA", "Contratado"), pessoa("BIA", "Aceitou")])
+        try:
+            self.coletar([pessoa("ANA", "Contratado")])
+        except timeline.FonteDesatualizada:
+            pass
+        self.assertEqual(sorted(k.split("|")[-1] for k in self.estado()["people"]),
+                         ["ANA", "BIA"])
+
+    def test_conjunto_que_cresce_e_aceito_na_hora(self):
+        self.coletar([pessoa("ANA", "Contratado")])
+        pessoas = self.publicar([pessoa("ANA", "Contratado"),
+                                 pessoa("BIA", "Convocado")])
+        self.assertEqual(len(pessoas), 2)
+
+    def test_mesmo_conjunto_com_status_novo_e_aceito(self):
+        self.coletar([pessoa("ANA", "Aceitou")])
+        extras = self.coletar([pessoa("ANA", "Contratado")])
+        self.assertEqual(len(self.mudancas_de(extras, "ANA")), 1)
+
+    def test_escape_explicito_permite_o_conjunto_encolher(self):
+        """Se a EMBRAPA remover uma linha de verdade, o operador destrava."""
+        self.coletar([pessoa("ANA", "Contratado"), pessoa("BIA", "Aceitou")])
+        os.environ["EMBRAPA_ACEITA_ENCOLHIMENTO"] = "1"
+        try:
+            pessoas = self.publicar([pessoa("ANA", "Contratado")])
+        finally:
+            del os.environ["EMBRAPA_ACEITA_ENCOLHIMENTO"]
+        self.assertEqual(len(pessoas), 1)
+
+
 class TestRegressaoIsolada(TimelineTestCase):
     """Guarda #2: regressao de 1 pessoa espera confirmacao antes de virar fato."""
 
@@ -271,8 +330,15 @@ class TestSerieNaoDuplica(TimelineTestCase):
         self.assertEqual(len(self.estado()["events"]["contratacoes"]), 1)
 
     def test_quem_some_e_volta_nao_conta_como_nova_convocacao(self):
+        """Um sumico so passa pela guarda de encolhimento com o escape ligado
+        (ver TestConjuntoQueEncolhe). Mesmo assim, quem volta nao pode entrar
+        de novo na serie -- senao o ritmo da linha do tempo infla."""
         self.coletar([pessoa("ANA", "Convocado"), pessoa("BIA", "Convocado")])
-        self.coletar([pessoa("BIA", "Convocado")])                  # ANA sumiu
+        os.environ["EMBRAPA_ACEITA_ENCOLHIMENTO"] = "1"
+        try:
+            self.coletar([pessoa("BIA", "Convocado")])              # ANA sumiu
+        finally:
+            del os.environ["EMBRAPA_ACEITA_ENCOLHIMENTO"]
         self.coletar([pessoa("ANA", "Convocado"), pessoa("BIA", "Convocado")])
         self.assertEqual(len(self.estado()["events"]["convocacoes"]), 0)
 

@@ -27,6 +27,16 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "site", "data", "data.json")
 _VOLATEIS = ("generated_at", "generated_ts", "business_days_elapsed")
 
 
+def _aviso(msg):
+    """Aviso que APARECE na interface do Actions, nao so no corpo do log.
+
+    Coleta descartada termina com o run verde. Sem destaque, o painel pode
+    ficar dias parado sem ninguem perceber -- foi o que aconteceu em 09/2026.
+    """
+    prefixo = "::warning::" if os.environ.get("GITHUB_ACTIONS") else ""
+    print(f"{prefixo}[coletor] {msg}")
+
+
 def _assinatura(data):
     """Conteudo significativo (sem os campos volateis) para comparar coletas."""
     d = copy.deepcopy(data)
@@ -47,8 +57,8 @@ def main():
         # A fonte oficial as vezes serve uma geracao ANTIGA do conjunto (cache).
         # Aceitar isso enchia o painel de mudancas contraditorias da mesma
         # pessoa. Descartamos a coleta inteira; a proxima reavalia.
-        print(f"[coletor] fonte devolveu GERACAO ANTIGA ({raw.fonte_desatualizada})"
-              " -> coleta descartada, data.json mantido.")
+        _aviso(f"fonte devolveu GERACAO ANTIGA ({raw.fonte_desatualizada})"
+               " -> coleta descartada, data.json mantido.")
         return
 
     if not raw.pessoas or not raw.opcoes:

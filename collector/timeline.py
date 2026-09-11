@@ -328,6 +328,23 @@ def update_and_build(pessoas):
                      and _e_suspeita(last_people[k], s, hist.get(k, []))]
         # quem some tambem denuncia geracao antiga: ela ainda nao tinha essa pessoa.
         sumiram = [k for k in last_people if k not in current]
+
+        # ---- guarda: o conjunto ENCOLHEU? -----------------------------------
+        # A tabela de convocados so cresce -- quem desiste continua listado, com
+        # o status mudado. Logo, linha que SOME e sempre geracao antiga, e aqui
+        # insistir NAO confirma nada (ao contrario do lote de regressoes, que a
+        # fonte pode mesmo estar corrigindo). Sem isso, um cache velho teimoso
+        # apaga convocacoes do painel e ainda registra o apagamento como
+        # "mudanca": foi o que a fonte serviu ao GitHub Actions por dias em
+        # 09/2026, com 1157 linhas contra as 1169 que servia a todo o resto.
+        # Escape para remocao real da fonte: EMBRAPA_ACEITA_ENCOLHIMENTO=1.
+        if sumiram and not os.environ.get("EMBRAPA_ACEITA_ENCOLHIMENTO"):
+            raise FonteDesatualizada(
+                "o conjunto encolheu: {} linha(s) sumiram ({} -> {}). A tabela "
+                "so cresce, entao isso e geracao antiga. Para aceitar uma "
+                "remocao real, rode com EMBRAPA_ACEITA_ENCOLHIMENTO=1".format(
+                    len(sumiram), len(last_people), len(current)))
+
         lote_confirmado = False
         if len(suspeitas) + len(sumiram) >= _LIMIAR_LOTE:
             assinatura = _assinatura_lote(suspeitas, sumiram, current)

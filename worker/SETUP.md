@@ -70,5 +70,6 @@ variáveis e o cron continuam como estão.
 Os testes do Worker rodam localmente com `node --test` dentro de `worker/`, e
 também no CI a cada push.
 
-> O Worker faz ~1.440 leituras/dia (dentro do free tier) e grava no KV apenas
-> quando a fonte muda (bem abaixo do limite de 1.000 escritas/dia).
+> O Worker faz ~1.440 leituras/dia (dentro do free tier). No KV ele grava
+> quando a fonte muda, mais uma marca a cada 10 min da conferência de atraso —
+> cerca de 150 a 200 escritas/dia, bem abaixo do limite de 1.000/dia.

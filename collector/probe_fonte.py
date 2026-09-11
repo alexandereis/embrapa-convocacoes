@@ -64,10 +64,87 @@ def por_rows_count():
         time.sleep(2)
 
 
+def variantes():
+    """Tenta furar o cache do ambiente: headers, URL e campos do payload.
+
+    Se alguma variante devolver mais linhas que a leitura normal, existe um
+    jeito barato de pegar a geracao atual sem mudar o caminho da coleta.
+    """
+    import copy
+    import json
+    import urllib.request
+
+    base_url = LOOKER_ENDPOINT
+    base_payload = _build_payload(1, LOOKER_ROWS_REGISTRADO)
+
+    def pedir(url, payload, extra_headers=None):
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (embrapa-collector)",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": "https://lookerstudio.google.com",
+            "Referer": "https://lookerstudio.google.com/",
+        }
+        headers.update(extra_headers or {})
+        req = urllib.request.Request(
+            url, data=json.dumps(payload).encode("utf-8"),
+            headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as r:
+            _rows, total = parse_table(strip_xssi(r.read().decode("utf-8")))
+            return total
+
+    testes = [("normal (referencia)", base_url, base_payload, None)]
+
+    testes.append(("header no-cache", base_url, base_payload,
+                   {"Cache-Control": "no-cache, no-store, max-age=0",
+                    "Pragma": "no-cache"}))
+
+    testes.append(("cache-buster na URL",
+                   base_url + "?_=" + str(int(time.time() * 1000)),
+                   base_payload, None))
+
+    testes.append(("endpoint lookerstudio.google.com",
+                   "https://lookerstudio.google.com/embed/batchedDataV2",
+                   base_payload, None))
+
+    p = copy.deepcopy(base_payload)
+    p["dataRequest"][0]["requestContext"]["requestMode"] = 1
+    testes.append(("requestMode=1", base_url, p, None))
+
+    p = copy.deepcopy(base_payload)
+    p["dataRequest"][0]["retryHints"]["retryCount"] = 1
+    p["dataRequest"][0]["retryHints"]["isLastRetry"] = True
+    testes.append(("retryCount=1", base_url, p, None))
+
+    p = copy.deepcopy(base_payload)
+    p["dataRequest"][0]["datasetSpec"]["dataset"][0]["revisionNumber"] = 1
+    testes.append(("revisionNumber=1", base_url, p, None))
+
+    print("== variantes para furar o cache deste ambiente ==")
+    referencia = None
+    for nome, url, payload, hdrs in testes:
+        try:
+            total = pedir(url, payload, hdrs)
+            if referencia is None:
+                referencia = total
+            marca = ""
+            if referencia is not None and total and total > referencia:
+                marca = "   <== MAIS LINHAS (geracao mais nova!)"
+            print(f"  {nome:<34} totalCount={total}{marca}")
+        except Exception as e:  # noqa: BLE001
+            print(f"  {nome:<34} ERRO: {str(e)[:70]}")
+        time.sleep(2)
+
+
 if __name__ == "__main__":
     if "--rows" in sys.argv:
         por_rows_count()
+    elif "--variantes" in sys.argv:
+        variantes()
     else:
         repetidas()
         print()
         por_rows_count()
+        print()
+        variantes()

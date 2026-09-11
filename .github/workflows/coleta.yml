@@ -16,7 +16,10 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths: [ "site/**", "collector/**", ".github/workflows/**" ]
+    # worker/** entra aqui pelos TESTES: o vigia decide quando o painel e
+    # republicado, entao uma mudanca nele tem que passar pelo CI como qualquer
+    # outra. O deploy do Worker em si continua manual (ver worker/SETUP.md).
+    paths: [ "site/**", "collector/**", "worker/**", ".github/workflows/**" ]
 
 permissions:
   contents: write   # para commitar o data.json atualizado

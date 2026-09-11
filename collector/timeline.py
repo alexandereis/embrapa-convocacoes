@@ -258,8 +258,11 @@ def _assinatura_lote(suspeitas, sumiram, current):
     return hashlib.sha256(corpo.encode("utf-8")).hexdigest()[:16]
 
 
-def update_and_build(pessoas):
+def update_and_build(pessoas, somente_leitura=False):
     """Devolve (convocacoes, contratacoes, extras, pessoas).
+
+    `somente_leitura=True` calcula tudo sem tocar no STATE_PATH -- e o que o
+    `collect.py --check` usa para validar a coleta sem avancar o estado real.
 
     `pessoas` volta com TODAS as linhas da fonte -- o total do painel espelha o
     oficial -- e com o status CONFIAVEL: se a fonte regrediu alguem e ainda nao
@@ -352,10 +355,11 @@ def update_and_build(pessoas):
             if n < _CONFIRMACOES_LOTE:
                 # Grava SO o contador: o resto do estado fica intacto.
                 state["lote"] = {"assinatura": assinatura, "n": n}
-                try:
-                    _write(STATE_PATH, state)
-                except Exception:  # noqa: BLE001
-                    pass
+                if not somente_leitura:
+                    try:
+                        _write(STATE_PATH, state)
+                    except Exception:  # noqa: BLE001
+                        pass
                 raise FonteDesatualizada(
                     "{} pessoa(s) voltaram a um status anterior e {} sumiram "
                     "(leitura {}/{} do mesmo lote)".format(
@@ -434,10 +438,11 @@ def update_and_build(pessoas):
                  "pendentes": pendentes, "lote": lote,
                  "convocados": sorted(convocados_ja),
                  "contratados": sorted(contratados_ja)}
-    try:
-        _write(STATE_PATH, new_state)
-    except Exception:  # noqa: BLE001
-        pass
+    if not somente_leitura:
+        try:
+            _write(STATE_PATH, new_state)
+        except Exception:  # noqa: BLE001
+            pass
 
     rcut = _cutoff(_RETURN_DAYS)
     recent = [c for c in changes if c.get("date", "") >= rcut]

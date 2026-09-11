@@ -24,5 +24,6 @@ class RawData:
 class BaseExtractor:
     name = "base"
 
-    def fetch(self) -> "RawData":  # pragma: no cover
+    def fetch(self, somente_leitura=False) -> "RawData":  # pragma: no cover
+        """`somente_leitura=True`: calcula sem gravar estado nenhum."""
         raise NotImplementedError

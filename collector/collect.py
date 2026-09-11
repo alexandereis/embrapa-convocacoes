@@ -49,7 +49,7 @@ def _assinatura(data):
 def main():
     check = "--check" in sys.argv
     print(f"[coletor] fonte ativa: {EXTRACTOR}")
-    raw = get_extractor(EXTRACTOR).fetch()
+    raw = get_extractor(EXTRACTOR).fetch(somente_leitura=check)
     print(f"[coletor] brutos -> {len(raw.pessoas)} convocados, "
           f"{len(raw.opcoes)} opcoes, {len(raw.convocacoes)} eventos de convocacao")
 

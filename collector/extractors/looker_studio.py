@@ -298,7 +298,7 @@ def _post(endpoint, payload, retries=3):
 class LookerStudioExtractor(BaseExtractor):
     name = "looker_studio"
 
-    def fetch(self) -> RawData:
+    def fetch(self, somente_leitura=False) -> RawData:
         d = RawData()
         # horario de Brasilia (UTC-3), formato dd/mm/aaaa HH:MM
         _br = time.gmtime(time.time() - 3 * 3600)
@@ -388,7 +388,8 @@ class LookerStudioExtractor(BaseExtractor):
             update_and_build = FonteDesatualizada = None
         if update_and_build is not None:
             try:
-                conv, contr, extras, pessoas = update_and_build(d.pessoas)
+                conv, contr, extras, pessoas = update_and_build(
+                    d.pessoas, somente_leitura=somente_leitura)
                 d.convocacoes, d.contratacoes = conv, contr
                 d.extras = extras or {}
                 d.pessoas = pessoas

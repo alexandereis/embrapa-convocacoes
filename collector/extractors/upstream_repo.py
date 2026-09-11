@@ -53,7 +53,7 @@ def _num(v):
 class UpstreamRepoExtractor(BaseExtractor):
     name = "upstream_repo"
 
-    def fetch(self) -> RawData:
+    def fetch(self, somente_leitura=False) -> RawData:
         d = RawData()
 
         # ---- lista de convocados (current_status.csv) ----

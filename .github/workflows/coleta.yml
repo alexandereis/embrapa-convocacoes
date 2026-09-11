@@ -50,6 +50,13 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: python -m unittest discover -s collector -t collector -p "test_*.py" -v
 
+      # O vigia decide QUANDO o painel e republicado -- um erro ali deixa o
+      # painel parado sem nenhum run vermelho para denunciar.
+      - name: Testes do vigia (Cloudflare Worker)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        working-directory: worker
+        run: node --test
+
       - name: Coletar dados (recalcula metricas)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # eleva o rate limit da API

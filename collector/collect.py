@@ -24,6 +24,16 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "site", "data", "data.json")
 
 # Campos que mudam a cada execucao mesmo sem novidade real (relogio interno).
 # Sao ignorados na comparacao para NAO regravar/commitar a toa.
+#
+# `last_update` fica DE FORA desta lista DE PROPOSITO -- nao e esquecimento.
+# Ele e o relogio da coleta e, por estar na comparacao, faz o data.json ser
+# regravado e republicado a cada execucao. Isso e o que mantem vivo o selo de
+# saude do site ("coleta ha X min", verde/amarelo/vermelho em site/index.html),
+# que le `generated_ts` do arquivo publicado. Se ele entrar aqui, o painel so
+# republica quando o dado muda e o selo passa a envelhecer sozinho: num fim de
+# semana sem convocacao o visitante ve "coleta ha 3 d — possivelmente atrasada"
+# num painel que esta funcionando perfeitamente. Republicar custa ~25s de
+# Actions; parecer abandonado custa a confianca de quem acompanha.
 _VOLATEIS = ("generated_at", "generated_ts", "business_days_elapsed")
 
 

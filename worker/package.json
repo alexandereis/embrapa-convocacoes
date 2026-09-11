@@ -1,0 +1,9 @@
+{
+  "name": "embrapa-watcher",
+  "private": true,
+  "type": "module",
+  "description": "Vigia do painel oficial. Roda no Cloudflare Workers; o package.json existe so para os testes locais (node --test).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

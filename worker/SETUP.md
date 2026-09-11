@@ -52,7 +52,23 @@ expressão `* * * * *` (a cada minuto) → **Add**.
 - **Worker (a cada 1 min):** lê o Looker, compara; nada acontece se não mudou.
 - **Só quando muda:** dispara o `repository_dispatch` → o robô coleta, recalcula e
   publica. O `collect.py` já só commita quando há mudança real.
+- **Se o painel ficar para trás:** a cada 10 min o Worker compara o total de
+  convocados da fonte com o do `data.json` já publicado. Se o painel estiver
+  menor, ele cutuca o Actions de novo — sem mexer na assinatura. Isso existe
+  porque a coleta pode ser **descartada**: o runner do Actions às vezes recebe
+  uma geração antiga da fonte. Como a assinatura nova já teria sido gravada no
+  disparo anterior, aquela mudança nunca mais dispararia sozinha e o painel só
+  se recuperaria no cron de 6 h.
 - **Rede de segurança:** o workflow ainda roda 4×/dia (cron) caso o Worker caia.
+
+## Atualizando o Worker
+
+Ao mudar o `embrapa-watcher.js`, repita o **Passo 2.2**: *Edit code*, apague
+tudo, cole o arquivo novo e **Deploy**. Nada além do código muda — os bindings,
+variáveis e o cron continuam como estão.
+
+Os testes do Worker rodam localmente com `node --test` dentro de `worker/`, e
+também no CI a cada push.
 
 > O Worker faz ~1.440 leituras/dia (dentro do free tier) e grava no KV apenas
 > quando a fonte muda (bem abaixo do limite de 1.000 escritas/dia).

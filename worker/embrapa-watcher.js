@@ -22,6 +22,11 @@ const PAYLOAD = {"dataRequest":[{"requestContext":{"reportContext":{"reportId":"
 // -- e apenas a rede de seguranca, e nao pode martelar o Actions a cada minuto.
 const INTERVALO_CONFERE_MS = 10 * 60 * 1000;
 
+// Versao do arquivo, devolvida em toda resposta. O deploy do Worker e manual
+// (copiar e colar no painel da Cloudflare), entao sem isso nao ha como saber se
+// o que esta no ar e o que esta no repositorio. Suba ao mudar este arquivo.
+const VERSAO = "2026-09-11.2";
+
 export default {
   async scheduled(event, env, ctx) {
     // loga o resultado de cada execucao do cron (visivel nos Real-time Logs).
@@ -109,10 +114,10 @@ async function conferirAtraso(env, totalFonte) {
   const disp = await dispararActions(env);
   if (!disp.ok) {
     return {ok: false, erro: "painel atrasado, mas o disparo falhou",
-            github_status: disp.status, publicados, total: totalFonte};
+            github_status: disp.status, publicados, total: totalFonte, versao: VERSAO};
   }
   return {ok: true, acao: "painel atrasado -> cutucou o Actions",
-          publicados, total: totalFonte};
+          publicados, total: totalFonte, versao: VERSAO};
 }
 
 async function checar(env, manual = false) {
@@ -131,7 +136,7 @@ async function checar(env, manual = false) {
     });
     texto = await resp.text();
   } catch (e) {
-    return {ok: false, erro: "fetch", detalhe: String(e)};
+    return {ok: false, erro: "fetch", detalhe: String(e), versao: VERSAO};
   }
 
   // interpreta a resposta
@@ -141,14 +146,14 @@ async function checar(env, manual = false) {
     const dr = (data.dataResponse || [])[0] || {};
     if (dr.errorStatus) {
       return {ok: false, erro: "Looker recusou", motivo: dr.errorStatus.reasonStr,
-              categoria: dr.errorStatus.errorCategoryStr};
+              categoria: dr.errorStatus.errorCategoryStr, versao: VERSAO};
     }
     tbl = (((dr.dataSubset || [])[0] || {}).dataset || {}).tableDataset;
   } catch (e) {
-    return {ok: false, erro: "json", trecho: texto.slice(0, 160)};
+    return {ok: false, erro: "json", trecho: texto.slice(0, 160), versao: VERSAO};
   }
   if (!tbl || !tbl.column) {
-    return {ok: false, erro: "sem tableDataset", trecho: texto.slice(0, 160)};
+    return {ok: false, erro: "sem tableDataset", trecho: texto.slice(0, 160), versao: VERSAO};
   }
 
   const base = "n=" + (tbl.totalCount || 0) + ";" + tbl.column.map(c => {
@@ -157,17 +162,33 @@ async function checar(env, manual = false) {
   }).join("");
   const sig = await sha256(base);
 
+  // ---- geracao antiga? -----------------------------------------------------
+  // A tabela de convocados so cresce, entao uma leitura MENOR que o maior total
+  // ja visto e cache velho da fonte. Nao dispara e -- importante -- nao avanca a
+  // assinatura: se avancasse, a volta para a geracao nova pareceria "mudanca" e
+  // dispararia de novo. Era esse pingue-pongue que enchia o Actions de runs que
+  // sempre terminavam com a coleta descartada.
+  // Se a fonte encolher DE VERDADE, o cron de 6h do Actions continua rodando e a
+  // decisao fica com o coletor (EMBRAPA_ACEITA_ENCOLHIMENTO), nao aqui.
+  const pico = parseInt(await env.WATCH_KV.get("pico") || "0", 10);
+  const total = tbl.totalCount || 0;
+  if (pico && total && total < pico) {
+    return {ok: true, acao: "geracao antiga da fonte -> ignorada",
+            total, pico, versao: VERSAO};
+  }
+  if (total > pico) await env.WATCH_KV.put("pico", total);
+
   const anterior = await env.WATCH_KV.get("sig");
   if (anterior !== null && sig === anterior) {
     // A fonte nao mudou -- mas o painel pode nao ter publicado a ultima vez.
     const atraso = await conferirAtraso(env, tbl.totalCount);
     if (atraso) return atraso;
-    return {ok: true, acao: "sem mudanca", total: tbl.totalCount};
+    return {ok: true, acao: "sem mudanca", total: tbl.totalCount, versao: VERSAO};
   }
   // 1a vez (sem baseline): so grava o ponto de partida, sem disparar nada.
   if (anterior === null) {
     await env.WATCH_KV.put("sig", sig);
-    return {ok: true, acao: "baseline gravado", total: tbl.totalCount};
+    return {ok: true, acao: "baseline gravado", total: tbl.totalCount, versao: VERSAO};
   }
 
   // Houve mudanca: dispara o Actions PRIMEIRO. So avancamos a assinatura no KV
@@ -178,16 +199,17 @@ async function checar(env, manual = false) {
   try {
     disp = await dispararActions(env);
   } catch (e) {
-    return {ok: false, erro: "github fetch", detalhe: String(e), total: tbl.totalCount};
+    return {ok: false, erro: "github fetch", detalhe: String(e), total: tbl.totalCount, versao: VERSAO};
   }
   if (disp.ok) {
     await env.WATCH_KV.put("sig", sig);   // so avanca o ponteiro se disparou de fato
     return {ok: true, acao: "MUDOU -> disparou Actions",
-            github_status: disp.status, total: tbl.totalCount};
+            github_status: disp.status, total: tbl.totalCount, versao: VERSAO};
   }
   // disparo recusado: assinatura NAO gravada (vai retentar) + mostra o motivo.
   return {ok: false, erro: "github dispatch falhou (assinatura NAO gravada, vai retentar)",
-          github_status: disp.status, corpo: disp.corpo.slice(0, 200), total: tbl.totalCount};
+          github_status: disp.status, corpo: disp.corpo.slice(0, 200), total: tbl.totalCount,
+          versao: VERSAO};
 }
 
 export { checar };

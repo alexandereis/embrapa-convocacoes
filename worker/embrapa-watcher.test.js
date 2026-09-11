@@ -140,6 +140,79 @@ test("painel a frente da fonte nao e considerado atraso", async () => {
   assert.ok(!/atrasado/i.test(r.acao || ""));
 });
 
+test("leitura menor que o pico conhecido e geracao antiga: nao dispara", async () => {
+  // Sem isto o vigia entra em pingue-pongue: a fonte alterna entre a geracao
+  // nova e uma antiga, cada alternancia muda a assinatura e cada mudanca vira
+  // um run do Actions -- que sempre descarta a coleta. Puro desperdicio.
+  const kv = kvFalso();
+  fetchFalso({ total: 1169, painelConvocados: 1169 });
+  await checar(env(kv));                      // baseline: pico 1169
+  const chamadas = fetchFalso({ total: 1157, painelConvocados: 1169 });
+  const r = await checar(env(kv));
+  assert.equal(chamadas.dispatch, 0, "geracao antiga nao pode disparar o Actions");
+  assert.match(r.acao, /antiga/i);
+});
+
+test("geracao antiga NAO avanca a assinatura", async () => {
+  // Se avancasse, a volta para a geracao nova pareceria "mudanca" e dispararia
+  // de novo -- o pingue-pongue continuaria pelo outro lado.
+  const kv = kvFalso();
+  fetchFalso({ total: 1169, painelConvocados: 1169 });
+  await checar(env(kv));
+  const sigDoPico = await kv.get("sig");
+  fetchFalso({ total: 1157, painelConvocados: 1169 });
+  await checar(env(kv));
+  assert.equal(await kv.get("sig"), sigDoPico);
+});
+
+test("voltar para a geracao nova depois de uma antiga nao gera disparo", async () => {
+  const kv = kvFalso();
+  fetchFalso({ total: 1169, painelConvocados: 1169 });
+  await checar(env(kv));                      // baseline
+  fetchFalso({ total: 1157, painelConvocados: 1169 });
+  await checar(env(kv));                      // oscilou para a antiga
+  const chamadas = fetchFalso({ total: 1169, painelConvocados: 1169 });
+  await checar(env(kv));                      // e voltou
+  assert.equal(chamadas.dispatch, 0, "a volta ao normal nao e novidade");
+});
+
+test("conjunto que cresce dispara normalmente e move o pico", async () => {
+  const kv = kvFalso();
+  fetchFalso({ total: 1169, painelConvocados: 1169 });
+  await checar(env(kv));
+  const chamadas = fetchFalso({ total: 1180, painelConvocados: 1169 });
+  const r = await checar(env(kv));
+  assert.equal(chamadas.dispatch, 1);
+  assert.match(r.acao, /MUDOU/);
+  assert.equal(await kv.get("pico"), "1180");
+});
+
+test("mesmo total com conteudo diferente ainda e mudanca real", async () => {
+  // Uma pessoa mudando de status nao altera a contagem -- e a novidade mais
+  // comum do painel. A guarda de pico nao pode engolir isso.
+  const kv = kvFalso();
+  fetchFalso({ total: 1169, painelConvocados: 1169 });
+  await checar(env(kv));
+  const chamadas = { dispatch: 0 };
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes("batchedDataV2")) return new Response(respostaLooker(1169, "y"));
+    if (u.includes("data.json")) return new Response('{"general":{"total_convocados":1169}}');
+    chamadas.dispatch++;
+    return new Response(null, { status: 204 });
+  };
+  const r = await checar(env(kv));
+  assert.equal(chamadas.dispatch, 1, "mudanca de status tem que disparar");
+  assert.match(r.acao, /MUDOU/);
+});
+
+test("a resposta diz qual versao do vigia esta no ar", async () => {
+  const kv = kvFalso();
+  fetchFalso({ total: 1169, painelConvocados: 1169 });
+  const r = await checar(env(kv));
+  assert.ok(r.versao, "sem isso nao da para saber se o Deploy pegou o arquivo novo");
+});
+
 test("o handler do cron continua exportado", () => {
   assert.equal(typeof worker.scheduled, "function");
   assert.equal(typeof worker.fetch, "function");

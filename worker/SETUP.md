@@ -67,6 +67,11 @@ Ao mudar o `embrapa-watcher.js`, repita o **Passo 2.2**: *Edit code*, apague
 tudo, cole o arquivo novo e **Deploy**. Nada além do código muda — os bindings,
 variáveis e o cron continuam como estão.
 
+Para confirmar que o *Deploy* pegou o arquivo certo, abra a URL do Worker: toda
+resposta traz `"versao"`, que deve bater com a constante `VERSAO` no topo do
+`embrapa-watcher.js`. Sem isso não há como saber se o que está no ar é o que
+está no repositório.
+
 Os testes do Worker rodam localmente com `node --test` dentro de `worker/`, e
 também no CI a cada push.
 

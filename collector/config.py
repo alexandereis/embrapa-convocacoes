@@ -31,7 +31,14 @@ LOOKER_PAGE_ID = "80063060"
 LOOKER_DATASOURCE_ID = "71a5a632-8fb5-4044-ad33-6496c93fb112"
 LOOKER_COMPONENT_ID = "cd-47x8z6vqwd"
 LOOKER_TIMEZONE = "America/Sao_Paulo"
-LOOKER_PAGE_SIZE = 500  # linhas por requisicao (a ultima pagina e clampada)
+# Linhas por requisicao. NAO E UM NUMERO LIVRE: a fonte usa o rowsCount como
+# parte da CHAVE DE CACHE e so devolve a geracao ATUAL para a query REGISTRADA
+# do painel, que pede 2000. Qualquer outro valor (500, 1000, 1500, 2500...)
+# devolve uma geracao ANTIGA -- em 11/09/2026 isso congelou o painel em 1157
+# linhas por dias, enquanto a fonte ja servia 1169 para quem pedia 2000.
+# Este valor tem que continuar igual ao do worker/embrapa-watcher.js
+# (test_looker.py compara os dois payloads).
+LOOKER_ROWS_REGISTRADO = 2000
 # Catalogo estatico opcao->cargo/area/subarea/vagas (gerado por build_catalog.py).
 # Caminho relativo a pasta collector/. E dado de edital: nao muda durante as
 # convocacoes, fica versionado no repo -> coletor independente.

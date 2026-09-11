@@ -28,7 +28,7 @@ from config import (
     LOOKER_DATASOURCE_ID,
     LOOKER_COMPONENT_ID,
     LOOKER_TIMEZONE,
-    LOOKER_PAGE_SIZE,
+    LOOKER_ROWS_REGISTRADO,
     LOOKER_CATALOG,
 )
 
@@ -305,23 +305,24 @@ class LookerStudioExtractor(BaseExtractor):
         d.last_update = time.strftime("%d/%m/%Y %H:%M", _br)
         catalog = _load_catalog()
 
-        start, page = 1, LOOKER_PAGE_SIZE
+        # rowsCount SEMPRE igual ao da query registrada do painel. A fonte usa
+        # esse numero como parte da chave de cache: pedir outro valor (inclusive
+        # "o que falta" na ultima pagina) devolve uma GERACAO ANTIGA do conjunto.
+        # Por isso nao ha clamp aqui -- pedir alem do fim so devolve menos linhas.
+        start, page = 1, LOOKER_ROWS_REGISTRADO
         total = None
+        lidas = 0
         seen = set()
         guard = 0
         while True:
             guard += 1
             if guard > 200:  # trava de seguranca contra loop infinito
                 break
-            # clampa a ultima pagina pra NAO pedir alem do fim (startRow+rows
-            # ultrapassando o totalCount faz o Looker devolver pagina vazia).
-            req_rows = page if total is None else min(page, total - start + 1)
-            if total is not None and req_rows <= 0:
-                break
-            raw_text = _post(LOOKER_ENDPOINT, _build_payload(start, req_rows))
+            raw_text = _post(LOOKER_ENDPOINT, _build_payload(start, page))
             rows, total = parse_table(strip_xssi(raw_text))
             if not rows:
                 break
+            lidas += len(rows)
             for i, p in enumerate(rows):
                 cod = (p.get("opcao") or "").strip()
                 cat = catalog.get(cod, {})
@@ -345,8 +346,17 @@ class LookerStudioExtractor(BaseExtractor):
             start += len(rows)
             if total and start > total:
                 break
-            if len(rows) < req_rows:  # ultima pagina (servidor devolveu menos)
+            if len(rows) < page:  # ultima pagina (servidor devolveu menos)
                 break
+
+        # Leitura truncada (a fonte declarou N e entregou menos): publicar isso
+        # apagaria gente do painel em silencio. Descartamos a coleta inteira,
+        # pelo mesmo caminho da geracao antiga -- a proxima reavalia.
+        if total and lidas < total:
+            d.fonte_desatualizada = (
+                "leitura incompleta: {} de {} linhas declaradas pela fonte"
+                .format(lidas, total))
+            return d
 
         # Remove linhas EXATAMENTE identicas (artefato de paginacao: se a fonte
         # muda durante a coleta multi-pagina, uma linha de fronteira pode ser

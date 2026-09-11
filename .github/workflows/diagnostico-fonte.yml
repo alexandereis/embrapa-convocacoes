@@ -1,0 +1,24 @@
+name: Diagnostico da fonte
+
+# Roda a sonda collector/probe_fonte.py DENTRO do runner, para ver qual geracao
+# do conjunto a fonte serve para o ambiente do GitHub Actions. Existe porque a
+# fonte ja serviu geracoes diferentes para ambientes diferentes ao mesmo tempo:
+# a maquina local e o Cloudflare Worker liam 1169 linhas enquanto o runner lia
+# 1157, e o painel ficou dias congelado sem nenhum erro aparecer.
+# Disparo manual apenas -- nao publica nada, so imprime o diagnostico.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sondar a fonte a partir do runner
+        run: python collector/probe_fonte.py
